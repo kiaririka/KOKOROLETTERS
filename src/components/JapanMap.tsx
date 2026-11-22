@@ -5,8 +5,8 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { MapPin, Lock, Unlock, Clock, Truck, CheckCircle, Package } from "lucide-react";
-import { REGIONS_METADATA } from "../data/lore.ts";
+import { MapPin, Lock, Unlock, Clock, Truck, CheckCircle, Package, Sparkles, Archive } from "lucide-react";
+import { REGIONS_METADATA, getRegionMonthStatus, getMonthName, getCurrentMonthNumber } from "../data/lore.ts";
 
 interface JapanMapProps {
   isSubscriber?: boolean;
@@ -227,7 +227,9 @@ isSubscriber = false}: JapanMapProps) {
             const isUnlocked = unlockedRegions.includes(region.id);
             const isActive = activeRegionId === region.id;
             const meta = REGIONS_METADATA.find(m => m.region_id === region.id);
-            const isFuture = meta ? new Date(meta.release_date).getTime() > Date.now() : false;
+            const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
+            const isPast = monthStatus === "past";
+            const isCurrent = monthStatus === "current";
 
             return (
               <motion.path
@@ -240,16 +242,20 @@ isSubscriber = false}: JapanMapProps) {
                 className="cursor-pointer transition-all focus:outline-none"
                 initial={{ fill: "#e5e5e5" }}
                 animate={{
-                  fill: isFuture
-                    ? (isActive ? "#d1cbd0" : "#ececec")
-                    : isUnlocked 
+                  fill: isUnlocked 
                     ? (isActive ? "#527e69" : "#9cbfae") 
-                    : (isActive ? "#eedba5" : "#faf6eb"),
-                  stroke: isFuture
-                    ? "#c0c0c0"
-                    : isUnlocked 
+                    : isCurrent 
+                    ? (isActive ? "#f59e0b" : "#fef3c7")
+                    : isPast 
+                    ? (isActive ? "#d6d3d1" : "#f5f5f4") 
+                    : (isActive ? "#e7e5e4" : "#fafaf9"),
+                  stroke: isUnlocked 
                     ? "#2d4438" 
-                    : "#d1c6a5",
+                    : isCurrent 
+                    ? "#d97706"
+                    : isPast 
+                    ? "#a8a29e" 
+                    : "#d6d3d1",
                   strokeWidth: isActive ? 2 : 1,
                 }}
                 whileHover={{ 
@@ -268,41 +274,37 @@ isSubscriber = false}: JapanMapProps) {
           {mapRegions.map((region) => {
             const isUnlocked = unlockedRegions.includes(region.id);
             const meta = REGIONS_METADATA.find(m => m.region_id === region.id);
-            const isFuture = meta ? new Date(meta.release_date).getTime() > Date.now() : false;
-
-            // Check if this is a dispatch region
-            const isPastDispatch = region.id === "kanto";
-            const isCurrentDispatch = region.id === "kyushu";
-            const isUpcomingDispatch = region.id === "chugoku";
-            const isSpecialDispatch = isPastDispatch || isCurrentDispatch || isUpcomingDispatch;
+            const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
+            const isCurrent = monthStatus === "current";
+            const isPast = monthStatus === "past";
 
             return (
               <g key={`label-${region.id}`} className="pointer-events-none">
-                {isSpecialDispatch && (
+                {isCurrent && (
                   <motion.circle
                     cx={region.labelX}
                     cy={region.labelY}
                     r="8"
                     fill="none"
-                    stroke={isPastDispatch ? "#10b981" : isCurrentDispatch ? "#d97706" : "#78716c"}
+                    stroke="#d97706"
                     strokeWidth="1.5"
                     initial={{ scale: 0.8, opacity: 0.5 }}
-                    animate={{ scale: [0.8, 1.8, 0.8], opacity: [0.6, 0.1, 0.6] }}
-                    transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                    animate={{ scale: [0.8, 1.8, 0.8], opacity: [0.7, 0.1, 0.7] }}
+                    transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
                   />
                 )}
                 <circle 
                   cx={region.labelX} 
                   cy={region.labelY} 
-                  r={isSpecialDispatch ? "5" : "3.5"} 
+                  r={isCurrent ? "5" : "3.5"} 
                   fill={
-                    isPastDispatch 
+                    isUnlocked 
                       ? "#10b981" 
-                      : isCurrentDispatch 
+                      : isCurrent 
                       ? "#f59e0b" 
-                      : isUpcomingDispatch 
-                      ? "#78716c" 
-                      : (isFuture ? "#9ca3af" : isUnlocked ? "#10b981" : "#8c7e5a")
+                      : isPast 
+                      ? "#a8a29e" 
+                      : "#d6d3d1"
                   }
                 />
               </g>
@@ -413,7 +415,11 @@ isSubscriber = false}: JapanMapProps) {
             if (!activeHoveredRegion) return null;
             const isUnlocked = unlockedRegions.includes(activeHoveredRegion.id);
             const hoveredMeta = REGIONS_METADATA.find(m => m.region_id === activeHoveredRegion.id);
-            const isFuture = hoveredMeta ? new Date(hoveredMeta.release_date).getTime() > Date.now() : false;
+            const monthStatus = hoveredMeta ? getRegionMonthStatus(hoveredMeta.month) : "past";
+            const monthName = hoveredMeta ? getMonthName(hoveredMeta.month) : "";
+            const isPast = monthStatus === "past";
+            const isCurrent = monthStatus === "current";
+            const isFuture = monthStatus === "future";
 
             return (
               <motion.div
@@ -439,15 +445,14 @@ isSubscriber = false}: JapanMapProps) {
                   
                   {/* Header with Inline Lantern and Title */}
                   <div className="flex items-center justify-center gap-1.5 w-full mb-1">
-                    {/* The pixelated Lantern */}
                     <div className="w-5 h-5 shrink-0">
                       <svg viewBox="0 0 20 20" className="w-full h-full drop-shadow-xs">
                         <g>
                           <rect x="6" y="0" width="8" height="2" fill="#451a03" />
                           <rect x="4" y="2" width="12" height="2" fill="#78350f" />
-                          <rect x="4" y="4" width="12" height="12" fill={isFuture ? "#6b7280" : "#f59e0b"} className={isFuture ? "" : "animate-pulse"} />
-                          <rect x="6" y="6" width="8" height="8" fill={isFuture ? "#9ca3af" : "#fcd34d"} />
-                          <rect x="8" y="8" width="4" height="4" fill={isFuture ? "#e5e7eb" : "#fffbeb"} />
+                          <rect x="4" y="4" width="12" height="12" fill={isFuture ? "#9ca3af" : isPast ? "#78716c" : "#f59e0b"} className={isCurrent ? "animate-pulse" : ""} />
+                          <rect x="6" y="6" width="8" height="8" fill={isFuture ? "#d1d5db" : isPast ? "#a8a29e" : "#fcd34d"} />
+                          <rect x="8" y="8" width="4" height="4" fill={isFuture ? "#f3f4f6" : isPast ? "#e7e5e4" : "#fffbeb"} />
                           <rect x="4" y="16" width="12" height="2" fill="#78350f" />
                           <rect x="6" y="18" width="8" height="2" fill="#451a03" />
                         </g>
@@ -461,56 +466,72 @@ isSubscriber = false}: JapanMapProps) {
 
                   {/* Subtext */}
                   <p className="text-[10px] text-stone-500 font-medium leading-tight mb-2.5 w-full text-center">
-                    {isFuture 
-                      ? `Releases on ${new Date(hoveredMeta?.release_date || "").toLocaleDateString()}`
-                      : isUnlocked 
-                      ? "Explore this region's travel diaries" 
-                      : "Unlock this region's lore"}
+                    {isUnlocked 
+                      ? "Explore travel letters & lore" 
+                      : isCurrent
+                      ? `${monthName} Dispatch • Available Now`
+                      : isPast
+                      ? `${monthName} Dispatch • Past Archive`
+                      : `Scheduled for ${monthName}`}
                   </p>
 
-                  {/* Shipping logistics indicator */}
-                  {activeHoveredRegion.id === "kanto" && (
-                    <div className="mt-1 mb-2 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[9px] font-bold font-mono flex items-center justify-center gap-1 w-full">
-                      <CheckCircle className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                      <span className="truncate">June Dispatch: Delivered (June 5)</span>
-                    </div>
-                  )}
-                  {activeHoveredRegion.id === "kyushu" && (
+                  {/* Shipping logistics status banner */}
+                  {isCurrent && (
                     <div className="mt-1 mb-2 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[9px] font-bold font-mono animate-pulse flex items-center justify-center gap-1 w-full">
                       <Truck className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                      <span className="truncate">July Dispatch: In Transit (Shipped July 3)</span>
+                      <span className="truncate">{monthName}: Active Monthly Dispatch</span>
                     </div>
                   )}
-                  {activeHoveredRegion.id === "chugoku" && (
-                    <div className="mt-1 mb-2 px-2.5 py-1 rounded-lg bg-stone-50 border border-stone-200 text-stone-700 text-[9px] font-bold font-mono flex items-center justify-center gap-1 w-full">
-                      <Package className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                      <span className="truncate">August Dispatch: Preparing (Est. Aug 1)</span>
+                  {isPast && (
+                    <div className="mt-1 mb-2 px-2.5 py-1 rounded-lg bg-stone-100 border border-stone-200 text-stone-700 text-[9px] font-bold font-mono flex items-center justify-center gap-1 w-full">
+                      <Archive className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                      <span className="truncate">{monthName}: Past Archive (Kit order)</span>
+                    </div>
+                  )}
+                  {isFuture && (
+                    <div className="mt-1 mb-2 px-2.5 py-1 rounded-lg bg-stone-50 border border-stone-200 text-stone-500 text-[9px] font-bold font-mono flex items-center justify-center gap-1 w-full">
+                      <Clock className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                      <span className="truncate">{monthName}: Coming Soon</span>
                     </div>
                   )}
 
                   {/* State-Awareness Banner */}
                   <div className={`text-[9px] font-mono font-bold tracking-tight py-1 px-1.5 rounded-md mb-3 w-full text-center leading-normal ${
-                    isFuture 
-                      ? "text-stone-500 bg-stone-100" 
-                      : "text-[#527e69] bg-[#527e69]/5"
+                    isUnlocked
+                      ? "text-emerald-800 bg-emerald-50"
+                      : isCurrent
+                      ? "text-amber-800 bg-amber-50"
+                      : "text-stone-600 bg-stone-100"
                   }`}>
-                    {isFuture 
-                      ? `${activeHoveredRegion.name} | Coming Soon`
-                      : isUnlocked 
-                      ? `${activeHoveredRegion.name} | Journey Active - Click to Enter` 
-                      : `${activeHoveredRegion.name} | Click to Unlock Journey`}
+                    {isUnlocked 
+                      ? `${activeHoveredRegion.name} | Unlocked` 
+                      : isCurrent 
+                      ? `${activeHoveredRegion.name} | Subscribe to Unlock` 
+                      : isPast
+                      ? `${activeHoveredRegion.name} | Archived Dispatch (Locked)`
+                      : `${activeHoveredRegion.name} | Coming Soon (Locked)`}
                   </div>
 
                   {/* Compact Button */}
                   <button 
                     onClick={() => onSelectRegion(activeHoveredRegion.id)}
-                    className={`text-[10px] font-bold py-1.5 px-4 rounded-full w-full shadow-xs transition-all whitespace-nowrap ${
-                      isFuture
-                        ? "bg-stone-300 hover:bg-stone-400 text-stone-700 cursor-pointer"
-                        : "bg-[#527e69] hover:bg-[#3d604f] active:scale-95 text-white"
+                    className={`text-[10px] font-bold py-1.5 px-4 rounded-full w-full shadow-xs transition-all whitespace-nowrap cursor-pointer ${
+                      isUnlocked
+                        ? "bg-[#527e69] hover:bg-[#3d604f] active:scale-95 text-white"
+                        : isCurrent
+                        ? "bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-900 font-bold"
+                        : isPast
+                        ? "bg-stone-300 hover:bg-stone-400 text-stone-800"
+                        : "bg-stone-200 hover:bg-stone-300 text-stone-600"
                     }`}
                   >
-                    {isFuture ? "Coming Soon" : isUnlocked ? "View Region" : (isSubscriber ? "Check Status" : "Get your ticket")}
+                    {isUnlocked 
+                      ? "View Region" 
+                      : isCurrent 
+                      ? (isSubscriber ? "Stamp Journal" : "Subscribe to Unlock →") 
+                      : isPast
+                      ? "Archived Dispatch"
+                      : "Coming Soon"}
                   </button>
                 </div>
                 
@@ -535,18 +556,18 @@ isSubscriber = false}: JapanMapProps) {
         {regionsList.map((r) => {
           const isUnlocked = unlockedRegions.includes(r.region_id);
           const isActive = activeRegionId === r.region_id;
+          const meta = REGIONS_METADATA.find(m => m.region_id === r.region_id);
+          const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
+          const monthName = meta ? getMonthName(meta.month) : "";
 
-          const isPastDispatch = r.region_id === "kanto";
-          const isCurrentDispatch = r.region_id === "kyushu";
-          const isUpcomingDispatch = r.region_id === "chugoku";
+          const isCurrent = monthStatus === "current";
+          const isPast = monthStatus === "past";
 
-          const subLabel = isPastDispatch 
-            ? " • June (Delivered)" 
-            : isCurrentDispatch 
-            ? " • July (In Transit)" 
-            : isUpcomingDispatch 
-            ? " • Aug (Preparing)" 
-            : "";
+          const subLabel = isCurrent 
+            ? ` • ${monthName} (Current Month)` 
+            : isPast 
+            ? ` • ${monthName} (Past Archive)` 
+            : ` • ${monthName} (Coming Soon)`;
 
           const isJustUnlocked = justUnlockedRegionId === r.region_id;
 
@@ -562,26 +583,34 @@ isSubscriber = false}: JapanMapProps) {
                   : { scale: 1 }
               }
               transition={{ duration: 0.45, ease: "easeOut" }}
-              className={`flex items-center gap-1.5 p-2 rounded-xl border text-[11px] font-medium transition-all text-left ${
+              className={`flex items-center gap-1.5 p-2 rounded-xl border text-[11px] font-medium transition-all text-left cursor-pointer ${
                 isJustUnlocked
                   ? "bg-emerald-50 border-emerald-400 text-emerald-900 ring-2 ring-emerald-300/60 shadow-sm"
                   : isActive
                   ? isUnlocked
                     ? "bg-emerald-50 border-emerald-300 text-emerald-900 shadow-xs"
-                    : "bg-amber-50 border-amber-200 text-amber-900 shadow-xs"
+                    : isCurrent
+                    ? "bg-amber-100 border-amber-300 text-amber-950 ring-1 ring-amber-300 shadow-xs"
+                    : "bg-stone-100 border-stone-300 text-stone-700 shadow-xs"
                   : isUnlocked
                   ? "bg-white border-emerald-100 hover:border-emerald-200 text-emerald-800"
-                  : "bg-stone-50 border-stone-100 text-stone-400 hover:border-amber-200 hover:text-stone-600"
+                  : isCurrent
+                  ? "bg-amber-50/80 border-amber-200 text-amber-900 hover:border-amber-300"
+                  : "bg-stone-50 border-stone-100 text-stone-400 hover:border-stone-200 hover:text-stone-600"
               }`}
             >
               {isUnlocked ? (
                 <Unlock className={`w-3 h-3 shrink-0 ${isActive || isJustUnlocked ? 'text-emerald-700' : 'text-emerald-600'}`} />
+              ) : isCurrent ? (
+                <Sparkles className="w-3 h-3 shrink-0 text-amber-600 animate-pulse" />
+              ) : isPast ? (
+                <Archive className="w-3 h-3 shrink-0 text-stone-400" />
               ) : (
-                <Lock className={`w-3 h-3 shrink-0 text-amber-500`} />
+                <Clock className="w-3 h-3 shrink-0 text-stone-300" />
               )}
               <span className="truncate flex-1">
                 {r.region_name}
-                {subLabel && <span className="text-[9px] block opacity-85 text-stone-500 font-mono font-medium mt-0.5">{subLabel}</span>}
+                <span className="text-[9px] block opacity-85 text-stone-500 font-mono font-medium mt-0.5">{subLabel}</span>
               </span>
             </motion.button>
           );
@@ -589,45 +618,57 @@ isSubscriber = false}: JapanMapProps) {
       </div>
 
       {/* Live Mail Dispatch Tracker Ledger */}
-      <div className="mt-6 border-t border-stone-200/60 pt-5 space-y-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 font-serif">
-          Active Mail Dispatch Tracker
-        </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="bg-emerald-50/50 border border-emerald-200/60 p-3 rounded-2xl flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-              <CheckCircle className="w-4 h-4" />
-            </div>
-            <div className="space-y-0.5">
-              <div className="text-[10px] font-bold font-serif text-emerald-900 leading-none">Past Month (June)</div>
-              <div className="text-[11px] text-stone-700 font-semibold">Sayama Hills (Kanto)</div>
-              <div className="text-[9px] text-stone-400 font-mono">Shipped: June 5 • Delivered</div>
-            </div>
-          </div>
+      {(() => {
+        const curMonth = getCurrentMonthNumber();
+        const prevMonth = curMonth > 1 ? curMonth - 1 : 12;
+        const nextMonth = curMonth < 12 ? curMonth + 1 : 1;
 
-          <div className="bg-amber-50/50 border border-amber-200/60 p-3 rounded-2xl flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 animate-pulse">
-              <Truck className="w-4 h-4 animate-bounce" style={{ animationDuration: '3s' }} />
-            </div>
-            <div className="space-y-0.5">
-              <div className="text-[10px] font-bold font-serif text-amber-950 leading-none">Current Month (July)</div>
-              <div className="text-[11px] text-amber-900 font-bold">Yakushima (Kyushu)</div>
-              <div className="text-[9px] text-amber-600 font-mono">Shipped: July 3 • In Transit</div>
-            </div>
-          </div>
+        const curMeta = REGIONS_METADATA.find(m => m.month === curMonth);
+        const prevMeta = REGIONS_METADATA.find(m => m.month === prevMonth);
+        const nextMeta = REGIONS_METADATA.find(m => m.month === nextMonth);
 
-          <div className="bg-stone-50/50 border border-stone-200/60 p-3 rounded-2xl flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-stone-100 text-stone-500 flex items-center justify-center shrink-0">
-              <Package className="w-4 h-4" />
-            </div>
-            <div className="space-y-0.5">
-              <div className="text-[10px] font-bold font-serif text-stone-800 leading-none">Upcoming Month (August)</div>
-              <div className="text-[11px] text-stone-700 font-semibold">Tomonoura (Chugoku)</div>
-              <div className="text-[9px] text-stone-400 font-mono">Est: Aug 1 • Preparing</div>
+        return (
+          <div className="mt-6 border-t border-stone-200/60 pt-5 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 font-serif">
+              Active Mail Dispatch Tracker
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-stone-50/70 border border-stone-200/60 p-3 rounded-2xl flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center shrink-0">
+                  <Archive className="w-4 h-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <div className="text-[10px] font-bold font-serif text-stone-700 leading-none">Past Month ({getMonthName(prevMonth)})</div>
+                  <div className="text-[11px] text-stone-800 font-semibold">{prevMeta?.region_name || "Past Region"}</div>
+                  <div className="text-[9px] text-stone-500 font-mono">Archived • Order Separately</div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50/80 border border-amber-200/80 p-3 rounded-2xl flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 animate-pulse">
+                  <Truck className="w-4 h-4 animate-bounce" style={{ animationDuration: '3s' }} />
+                </div>
+                <div className="space-y-0.5">
+                  <div className="text-[10px] font-bold font-serif text-amber-950 leading-none">Current Month ({getMonthName(curMonth)})</div>
+                  <div className="text-[11px] text-amber-900 font-bold">{curMeta?.region_name || "Current Region"}</div>
+                  <div className="text-[9px] text-amber-700 font-mono">Active Monthly Dispatch</div>
+                </div>
+              </div>
+
+              <div className="bg-stone-50/50 border border-stone-200/60 p-3 rounded-2xl flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-stone-100 text-stone-400 flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <div className="text-[10px] font-bold font-serif text-stone-600 leading-none">Upcoming Month ({getMonthName(nextMonth)})</div>
+                  <div className="text-[11px] text-stone-700 font-semibold">{nextMeta?.region_name || "Upcoming Region"}</div>
+                  <div className="text-[9px] text-stone-400 font-mono">Scheduled • Stays Locked</div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
     </div>
   );
 }

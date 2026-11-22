@@ -18,6 +18,36 @@ export interface RegionMetadata {
   month: number;
 }
 
+export type MonthStatus = "past" | "current" | "future";
+
+/**
+ * Returns current month number (1 = Jan ... 11 = Nov, 12 = Dec).
+ */
+export function getCurrentMonthNumber(): number {
+  return new Date().getMonth() + 1;
+}
+
+/**
+ * Name of month by number (1-12)
+ */
+export function getMonthName(monthNumber: number): string {
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  return months[monthNumber - 1] || "";
+}
+
+/**
+ * Categorizes a region's month into 'past', 'current', or 'future'
+ */
+export function getRegionMonthStatus(monthNumber: number): MonthStatus {
+  const current = getCurrentMonthNumber();
+  if (monthNumber < current) return "past";
+  if (monthNumber === current) return "current";
+  return "future";
+}
+
 export interface RegionLore {
   region_id: string;
   region_name: string;
@@ -25,23 +55,20 @@ export interface RegionLore {
   assets_url: string;
 }
 
-// Frontend configuration: release dates spanning across 2026.
-// Current local time is 2026-07-04.
-// Any date <= 2026-07-04 is released (Past/Present).
-// Any date > 2026-07-04 is "Coming Soon" (Future).
+// 12-month calendar itinerary (Month 1: January through Month 12: December)
 export const REGIONS_METADATA: RegionMetadata[] = [
   { region_id: "hokkaido", region_name: "Hokkaido", release_date: "2026-01-01", month: 1 },
   { region_id: "tohoku", region_name: "Tohoku", release_date: "2026-02-01", month: 2 },
-  { region_id: "shinshu", region_name: "Shinshu (Alps)", release_date: "2026-10-01", month: 3 }, // Future
-  { region_id: "kanto", region_name: "Kanto (Tokyo)", release_date: "2026-03-01", month: 4 },
-  { region_id: "chubu", region_name: "Chubu (Fuji)", release_date: "2026-04-01", month: 5 },
-  { region_id: "iseshima", region_name: "Ise-Shima", release_date: "2026-11-01", month: 6 }, // Future
-  { region_id: "kansai", region_name: "Kansai (Kyoto)", release_date: "2026-05-01", month: 7 },
-  { region_id: "chugoku", region_name: "Chugoku", release_date: "2026-06-01", month: 8 },
-  { region_id: "seto", region_name: "Seto Inland Sea", release_date: "2026-12-01", month: 9 }, // Future
-  { region_id: "shikoku", region_name: "Shikoku", release_date: "2026-07-01", month: 10 }, // Past/Present (July 1st)
-  { region_id: "kyushu", region_name: "Kyushu", release_date: "2026-08-01", month: 11 }, // Future (August 1st)
-  { region_id: "okinawa", region_name: "Okinawa", release_date: "2026-09-01", month: 12 } // Future (September 1st)
+  { region_id: "shinshu", region_name: "Shinshu (Alps)", release_date: "2026-03-01", month: 3 },
+  { region_id: "kanto", region_name: "Kanto (Tokyo)", release_date: "2026-04-01", month: 4 },
+  { region_id: "chubu", region_name: "Chubu (Fuji)", release_date: "2026-05-01", month: 5 },
+  { region_id: "iseshima", region_name: "Ise-Shima", release_date: "2026-06-01", month: 6 },
+  { region_id: "kansai", region_name: "Kansai (Kyoto)", release_date: "2026-07-01", month: 7 },
+  { region_id: "chugoku", region_name: "Chugoku", release_date: "2026-08-01", month: 8 },
+  { region_id: "seto", region_name: "Seto Inland Sea", release_date: "2026-09-01", month: 9 },
+  { region_id: "shikoku", region_name: "Shikoku", release_date: "2026-10-01", month: 10 },
+  { region_id: "kyushu", region_name: "Kyushu", release_date: "2026-11-01", month: 11 },
+  { region_id: "okinawa", region_name: "Okinawa", release_date: "2026-12-01", month: 12 }
 ];
 
 export const LORE_DATA: Record<string, RegionLore> = {

@@ -25,6 +25,7 @@ import {
   UserCheck,
   BookOpen,
   ArrowRight,
+  Archive,
   Image,
   Tag,
   Coffee,
@@ -37,7 +38,7 @@ import { saveWaitlist, saveNewsletter, saveOrder, isEmailInNewsletter } from "./
 import MonthlyLetterShowcase from "./components/MonthlyLetterShowcase.tsx";
 import FaqSection from "./components/FaqSection.tsx";
 import { Region, Subscriber, PlanTier, SubscriptionStatus } from "./types.ts";
-import { REGIONS_METADATA, LORE_DATA } from "./data/lore.ts";
+import { REGIONS_METADATA, LORE_DATA, getRegionMonthStatus, MonthStatus, getCurrentMonthNumber, getMonthName } from "./data/lore.ts";
 
 export const ADMIN_EMAILS = [
   "isha79799@gmail.com",
@@ -377,7 +378,7 @@ export default function App() {
 
   const activeRegion = regions.find(r => r.region_id === activeRegionId);
   const activeMetadata = REGIONS_METADATA.find(r => r.region_id === activeRegionId);
-  const isActiveRegionFuture = activeMetadata ? new Date(activeMetadata.release_date).getTime() > Date.now() : false;
+  const activeRegionMonthStatus = activeMetadata ? getRegionMonthStatus(activeMetadata.month) : "past";
   const isSubscriberActive = session?.subscriber?.subscription_status === "Active";
   const isUnlocked = isSubscriberActive && (session?.unlocked_regions?.includes(activeRegionId || "") || false);
 
@@ -391,15 +392,16 @@ export default function App() {
     }
   };
 
-  const handleSelectRegion = async (id: string) => {
+  const handleSelectRegion = (id: string) => {
     const metadata = REGIONS_METADATA.find(r => r.region_id === id);
     if (!metadata) return;
 
-    const isFuture = new Date(metadata.release_date).getTime() > Date.now();
     setActiveRegionId(id);
+    const monthStatus = getRegionMonthStatus(metadata.month);
+    const isAlreadyUnlocked = isSubscriberActive && (session?.unlocked_regions || []).includes(id);
 
-    if (isFuture) {
-      // Future: display Coming Soon. Zero database interaction.
+    // If already unlocked for this user, let them view their journal
+    if (isAlreadyUnlocked) {
       setActiveTab("journal");
       setTimeout(() => {
         document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
@@ -407,17 +409,28 @@ export default function App() {
       return;
     }
 
-    // Past/Present: check authorization
-    const unlocked = session?.unlocked_regions?.includes(id) || await checkRegionAuthorization(id);
-    if (!unlocked && !isSubscriberActive) {
-      setTicketRegion(id);
-      setTicketModalOpen(true);
-    } else {
-      setActiveTab("journal");
+    // SCENARIO C: Current month & not yet subscribed -> directly navigate to subscription page!
+    if (monthStatus === "current") {
+      if (isSubscriberActive) {
+        setActiveTab("journal");
+        setTimeout(() => {
+          document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+        return;
+      }
+      setActiveTab("subscription");
       setTimeout(() => {
-        document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }, 100);
+      return;
     }
+
+    // SCENARIO A (Past month) & SCENARIO B (Future month):
+    // Stays locked in Travel Journal with specific notice (cannot be unlocked here)
+    setActiveTab("journal");
+    setTimeout(() => {
+      document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   };
 
   return (
@@ -651,8 +664,8 @@ export default function App() {
                     🌏 Global Journey Map (Visible to Everyone)
                   </div>
                   <JapanMap
-                    isSubscriber={false}
-                    unlockedRegions={regions.map(r => r.region_id)}
+                    isSubscriber={isSubscriberActive}
+                    unlockedRegions={isSubscriberActive ? (session?.unlocked_regions || []) : []}
                     activeRegionId={activeRegionId}
                     onSelectRegion={handleSelectRegion}
                     regionsList={regions}
@@ -1040,26 +1053,40 @@ export default function App() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {regions.map((region, idx) => {
                           const isCovered = (session.unlocked_regions || []).includes(region.region_id);
+                          const meta = REGIONS_METADATA.find(m => m.region_id === region.region_id);
+                          const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
+                          const monthName = meta ? getMonthName(meta.month) : `Month ${idx + 1}`;
+
                           return (
                             <div
                               key={region.region_id}
                               className={`p-3 rounded-2xl border text-left flex flex-col justify-between h-20 transition-all ${
                                 isCovered
                                   ? "bg-[#eaf4eb] border-emerald-200 text-emerald-900"
+                                  : monthStatus === "current"
+                                  ? "bg-amber-50/80 border-amber-200 text-amber-900"
                                   : "bg-stone-50 border-stone-200 text-stone-400"
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-[9px] font-mono font-bold text-ghibli-sage">Month {idx + 1}</span>
+                                <span className="text-[9px] font-mono font-bold text-ghibli-sage">{monthName}</span>
                                 {isCovered ? (
                                   <span className="text-emerald-700 font-bold">🌱</span>
+                                ) : monthStatus === "current" ? (
+                                  <span className="text-amber-600 font-bold">✨</span>
                                 ) : (
                                   <span className="text-stone-300">🔒</span>
                                 )}
                               </div>
                               <div className="font-serif font-bold text-xs truncate">{region.region_name}</div>
                               <div className="text-[9px] font-mono">
-                                {isCovered ? "Stamped & Shipped" : "Locked"}
+                                {isCovered 
+                                  ? "Stamped & Shipped" 
+                                  : monthStatus === "current" 
+                                  ? "Current Month" 
+                                  : monthStatus === "past" 
+                                  ? "Past Archive" 
+                                  : "Coming Soon"}
                               </div>
                             </div>
                           );
@@ -1508,17 +1535,21 @@ export default function App() {
                               </div>
 
                               <div className="flex items-center gap-2">
-                                {isActiveRegionFuture ? (
-                                  <span className="bg-amber-600/90 text-white text-[10px] font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-xs">
-                                    <Clock className="w-3 h-3" /> Coming Soon
-                                  </span>
-                                ) : isUnlocked ? (
+                                {isUnlocked ? (
                                   <span className="bg-emerald-600/90 text-white text-[10px] font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-xs">
                                     <Unlock className="w-3 h-3" /> Unlocked
                                   </span>
+                                ) : activeRegionMonthStatus === "past" ? (
+                                  <span className="bg-stone-700/90 text-stone-200 text-[10px] font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-xs">
+                                    <Archive className="w-3 h-3 text-stone-300" /> Past Dispatch • Locked Archive
+                                  </span>
+                                ) : activeRegionMonthStatus === "future" ? (
+                                  <span className="bg-amber-700/90 text-white text-[10px] font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-xs">
+                                    <Clock className="w-3 h-3" /> Coming Soon • Locked
+                                  </span>
                                 ) : (
-                                  <span className="bg-stone-800/90 text-stone-300 text-[10px] font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-xs">
-                                    <Lock className="w-3 h-3" /> Locked
+                                  <span className="bg-amber-500/95 text-stone-900 text-[10px] font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-xs">
+                                    <Sparkles className="w-3 h-3 animate-pulse text-stone-900" /> Current Month's Dispatch
                                   </span>
                                 )}
                               </div>
@@ -1527,128 +1558,111 @@ export default function App() {
 
                           {/* Region body content */}
                           <div className="p-8 flex-1 flex flex-col gap-6">
-                            {isActiveRegionFuture ? (
-                              <div className="bg-ghibli-cream border border-ghibli-cream-dark rounded-2xl p-6 text-center space-y-4">
-                                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto text-amber-800">
-                                  <Clock className="w-6 h-6 animate-pulse" />
-                                </div>
-                                <div className="max-w-md mx-auto">
-                                  <h3 className="font-serif font-bold text-ghibli-green-dark text-base">Coming Soon</h3>
-                                  <p className="text-xs text-ghibli-sage leading-relaxed mt-2">
-                                    The journey to **{activeRegion?.region_name}** is a future whisper. This beautiful monthly letter and postcard collection is scheduled to release on **{new Date(activeMetadata?.release_date || "").toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}**.
-                                  </p>
-                                  <div className="p-3 bg-white/60 border border-ghibli-cream-dark/50 rounded-xl mt-4 text-[11px] text-ghibli-sage font-mono space-y-1 text-left">
-                                    <span className="block text-ghibli-green-dark font-semibold">Guard-and-Fetch Gateway:</span>
-                                    <span className="block">● Release Date: {activeMetadata?.release_date}</span>
-                                    <span className="block text-emerald-800">✓ Evaluated locally: zero network requests to Firestore made.</span>
+                            {!isUnlocked ? (
+                              activeRegionMonthStatus === "past" ? (
+                                /* SCENARIO A: Past Month */
+                                <div className="bg-[#fbf9f4] border border-stone-200 rounded-2xl p-6 text-center space-y-4">
+                                  <div className="w-12 h-12 rounded-full bg-stone-200 flex items-center justify-center mx-auto text-stone-600">
+                                    <Archive className="w-6 h-6" />
+                                  </div>
+                                  <div className="max-w-md mx-auto space-y-2">
+                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-600 text-[11px] font-mono font-semibold">
+                                      <span>{activeMetadata ? getMonthName(activeMetadata.month) : ""} Dispatch</span>
+                                      <span>•</span>
+                                      <span className="text-stone-500">Archived Window</span>
+                                    </div>
+                                    <h3 className="font-serif font-bold text-stone-800 text-lg">
+                                      Past Dispatch Archive • Locked
+                                    </h3>
+                                    <p className="text-xs text-stone-600 leading-relaxed">
+                                      The monthly dispatch window for **{activeRegion.region_name}** has passed. This journey is locked and cannot be unlocked through the active monthly subscription.
+                                    </p>
+                                    <div className="bg-amber-50/70 border border-amber-200/60 rounded-xl p-3.5 text-left space-y-1 text-xs text-amber-900 mt-3">
+                                      <span className="font-semibold block text-[11px] font-mono uppercase tracking-wider text-amber-800">
+                                        📦 Individual Collector Kits
+                                      </span>
+                                      <p className="text-[11px] text-amber-800/90 leading-relaxed">
+                                        Past dispatches are archived and cannot be ordered through standard monthly subscriptions. They will need to be ordered separately as individual collector kits once past editions are made available.
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ) : !isUnlocked ? (
-                              /* Locked region details */
-                              <div className="bg-ghibli-cream border border-ghibli-cream-dark rounded-2xl p-6 text-center space-y-4">
-                                <div className="w-12 h-12 rounded-full bg-ghibli-green-light flex items-center justify-center mx-auto text-ghibli-green-dark">
-                                  <Lock className="w-6 h-6" />
-                                </div>
-                                <div className="max-w-md mx-auto">
-                                  <h3 className="font-serif font-bold text-ghibli-green-dark text-base">This journey is currently locked</h3>
-                                  <p className="text-xs text-ghibli-sage leading-relaxed mt-2">
-                                    To unlock the monthly letters, postcards, and lore of **{activeRegion.region_name}**, choose a subscription passage below. Active subscribers can stamp and unlock any released region instantly.
-                                  </p>
-                                </div>
-
-                                <div className="max-w-md mx-auto pt-4 border-t border-ghibli-green-light space-y-4">
-                                  {isSubscriberActive ? (
-                                    <div className="space-y-3">
-                                      <p className="text-[11px] text-emerald-800 font-semibold bg-emerald-50 p-2 rounded-lg border border-emerald-100">
-                                        You are an active **{session.subscriber?.plan_tier}** tier traveler! You can stamp and unlock this region directly.
-                                      </p>
-                                      <button
-                                        onClick={() => handleManualStamp(activeRegion.region_id)}
-                                        className="w-full bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
-                                      >
-                                        <Unlock className="w-4 h-4" />
-                                        <span>Stamp & Unlock Region</span>
-                                      </button>
+                              ) : activeRegionMonthStatus === "future" ? (
+                                /* SCENARIO B: Future Month */
+                                <div className="bg-ghibli-cream border border-ghibli-cream-dark rounded-2xl p-6 text-center space-y-4">
+                                  <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto text-amber-800">
+                                    <Clock className="w-6 h-6 animate-pulse" />
+                                  </div>
+                                  <div className="max-w-md mx-auto space-y-2">
+                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-mono font-semibold">
+                                      <span>Scheduled for {activeMetadata ? getMonthName(activeMetadata.month) : ""}</span>
+                                      <span>•</span>
+                                      <span>Month {activeMetadata?.month} of 12</span>
                                     </div>
-                                  ) : (
-                                    /* Direct subscription activation triggers */
-                                    <div id="subscription-direct-checkout-form" className="space-y-3 text-left">
-                                      <h4 className="text-xs font-bold text-ghibli-green-dark font-serif uppercase tracking-wider flex items-center gap-1">
-                                        <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-                                        Subscribe to Unlock are you ready?
-                                      </h4>
-                                      
-                                      <div className="space-y-2 text-xs">
-                                        <div>
-                                          <label className="text-[10px] text-ghibli-sage block mb-1 font-semibold">Shipping Address (Required for Physical Postcards)</label>
-                                          <textarea
-                                            id="address-ledger-focus"
-                                            rows={2}
-                                            value={checkoutAddress}
-                                            onChange={(e) => setCheckoutAddress(e.target.value)}
-                                            placeholder="Enter your physical shipping address where letters should be delivered..."
-                                            className="w-full p-2 rounded-lg border border-ghibli-green bg-white text-xs"
-                                          />
-                                        </div>
-                                        <div>
-                                          <label className="text-[10px] text-ghibli-sage block mb-1 font-semibold">Plan Passage Tier</label>
-                                          <select
-                                            value={checkoutTier}
-                                            onChange={(e) => setCheckoutTier(e.target.value as PlanTier)}
-                                            className="w-full p-2 rounded-lg border border-ghibli-green bg-white text-xs"
-                                          >
-                                            <option value="India">Domestic India Plan (₹1,499/mo - Free Shipping)</option>
-                                            <option value="International">Collector's International Plan ($29.99/mo - Global Delivery)</option>
-                                          </select>
-                                        </div>
+                                    <h3 className="font-serif font-bold text-ghibli-green-dark text-lg">
+                                      Coming Soon • Future Journey
+                                    </h3>
+                                    <p className="text-xs text-ghibli-sage leading-relaxed">
+                                      The journey to **{activeRegion.region_name}** is a future whisper. This monthly letter and postcard collection is scheduled to release in **{activeMetadata ? getMonthName(activeMetadata.month) : ""}** and remains sealed until that month arrives.
+                                    </p>
+                                    <div className="p-3 bg-white/70 border border-ghibli-cream-dark/50 rounded-xl text-[11px] text-ghibli-sage font-mono space-y-1 text-left mt-3">
+                                      <span className="block text-ghibli-green-dark font-semibold">Travel Calendar Notice:</span>
+                                      <span className="block text-stone-600">● Scheduled Dispatch: {activeMetadata ? getMonthName(activeMetadata.month) : ""}</span>
+                                      <span className="block text-amber-800">🔒 Will stay locked until the month arrives. Early unlocking is not available.</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                /* SCENARIO C: Current Month */
+                                <div className="bg-ghibli-cream border border-amber-200/80 rounded-2xl p-6 text-center space-y-4 shadow-xs">
+                                  <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center mx-auto text-amber-700">
+                                    <Sparkles className="w-6 h-6" />
+                                  </div>
+                                  <div className="max-w-md mx-auto space-y-2">
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/80 border border-amber-200 text-amber-900 text-[11px] font-mono font-bold uppercase tracking-wider">
+                                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                      <span>Active Dispatch • {activeMetadata ? getMonthName(activeMetadata.month) : ""}</span>
+                                    </div>
+                                    <h3 className="font-serif font-bold text-ghibli-green-dark text-xl">
+                                      Current Month's Journey: {activeRegion.region_name}
+                                    </h3>
+                                    <p className="text-xs text-ghibli-sage leading-relaxed">
+                                      This is our active dispatch for {activeMetadata ? getMonthName(activeMetadata.month) : ""}! Subscribe today to receive this month's physical hand-addressed letter kit and unlock the complete interactive digital journey.
+                                    </p>
+
+                                    {isSubscriberActive ? (
+                                      <div className="pt-3 space-y-3">
+                                        <p className="text-[11px] text-emerald-800 font-semibold bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                                          You are an active **{session?.subscriber?.plan_tier}** tier traveler! Stamp your journal to unlock this month's letters now.
+                                        </p>
+                                        <button
+                                          onClick={() => handleManualStamp(activeRegion.region_id)}
+                                          className="w-full bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                                        >
+                                          <Unlock className="w-4 h-4" />
+                                          <span>Stamp & Unlock {activeRegion.region_name}</span>
+                                        </button>
                                       </div>
-
-                                      <button
-                                        onClick={async () => {
-                                          if (!checkoutAddress || checkoutAddress.trim().length < 5) {
-                                            alert("Please enter a complete shipping address first!");
-                                            return;
-                                          }
-                                          try {
-                                            setSimulatingWebhook(true);
-                                            const res = await fetch("/api/checkout", {
-                                              method: "POST",
-                                              headers: { "Content-Type": "application/json" },
-                                              body: JSON.stringify({
-                                                plan_tier: checkoutTier,
-                                                region_id: activeRegion.region_id,
-                                                shipping_address: checkoutAddress
-                                              })
-                                            });
-                                            const data = await res.json();
-                                            if (data.success) {
-                                              if (session?.email) { saveOrder({ email: session.email, plan_tier: checkoutTier, shipping_address: checkoutAddress, gateway: 'region-checkout' }).catch(function(e) { console.warn(e); }); }
-                                              await fetchSession();
-                                              triggerUnlockAnimation(activeRegion.region_id);
-                                            } else {
-                                              alert(data.error || "Failed to complete checkout.");
-                                            }
-                                          } catch (err: any) {
-                                            alert("Network error: " + err.message);
-                                          } finally {
-                                            setSimulatingWebhook(false);
-                                          }
-                                        }}
-                                        disabled={simulatingWebhook}
-                                        className="w-full bg-amber-500 hover:bg-amber-600 text-stone-900 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 mt-3"
-                                      >
-                                        {simulatingWebhook ? (
-                                          <RefreshCw className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                          <CreditCard className="w-4 h-4" />
-                                        )}
-                                        <span>Proceed to Secure Subscription ({checkoutTier === "India" ? "Razorpay" : "PayPal"})</span>
-                                      </button>
-                                    </div>
-                                  )}
+                                    ) : (
+                                      <div className="pt-3">
+                                        <button
+                                          onClick={() => {
+                                            setActiveTab("subscription");
+                                            window.scrollTo({ top: 0, behavior: "smooth" });
+                                          }}
+                                          className="w-full bg-amber-500 hover:bg-amber-600 text-stone-900 py-3 px-6 rounded-xl font-bold font-serif text-sm transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow cursor-pointer"
+                                        >
+                                          <span>Go to Subscription Page to Subscribe</span>
+                                          <ArrowRight className="w-4 h-4" />
+                                        </button>
+                                        <span className="block text-[10px] text-ghibli-sage font-mono mt-2">
+                                          Includes physical letter kit delivery + digital journal access
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
+                              )
                             ) : (
                               /* Unlocked Letter view */
                               <div className="space-y-6">
