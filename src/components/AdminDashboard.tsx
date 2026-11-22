@@ -16,6 +16,7 @@ import {
   getAllOrders, 
   getAllNewsletter, 
   updateOrderStatus, 
+  seedSampleData,
   OrderRecord, 
   NewsletterRecord 
 } from "../firestoreService.ts";
@@ -25,6 +26,8 @@ export default function AdminDashboard() {
   const [newsletters, setNewsletters] = useState<NewsletterRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"orders" | "newsletter">("orders");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -35,6 +38,7 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [fetchedOrders, fetchedNews] = await Promise.all([
         getAllOrders(),
@@ -42,11 +46,25 @@ export default function AdminDashboard() {
       ]);
       setOrders(fetchedOrders);
       setNewsletters(fetchedNews);
-    } catch (err) {
+    } catch (err: any) {
       console.error("AdminDashboard load error:", err);
+      setError(err?.message || "Could not fetch data from Firestore. Check your Firestore Security Rules.");
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleSeed = async () => {
+    setSeeding(true);
+    try {
+      const res = await seedSampleData();
+      alert(`🌱 Successfully added ${res.orders} sample subscribers and ${res.newsletter} newsletter members to Cloud Firestore!`);
+      await loadData();
+    } catch (err: any) {
+      alert("Error seeding data: " + err.message + "\n\nMake sure your Firestore rules allow create/read!");
+    } finally {
+      setSeeding(false);
     }
   };
 
@@ -170,24 +188,47 @@ export default function AdminDashboard() {
           </p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleSeed}
+            disabled={seeding}
+            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold transition-all shadow-xs"
+            title="Add sample mock subscribers to Firestore to test the dashboard"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{seeding ? "Seeding..." : "🌱 Seed Test Data"}</span>
+          </button>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#f0eadd] hover:bg-[#e4dbcc] text-ghibli-green-dark rounded-xl text-xs font-semibold transition-all shadow-xs"
+            className="flex items-center gap-2 px-3 py-2 bg-[#f0eadd] hover:bg-[#e4dbcc] text-ghibli-green-dark rounded-xl text-xs font-semibold transition-all shadow-xs"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            <span>Refresh Data</span>
+            <span>Refresh</span>
           </button>
           <button
             onClick={activeTab === "orders" ? exportOrdersCsv : exportNewsletterCsv}
-            className="flex items-center gap-2 px-4 py-2 bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark rounded-xl text-xs font-bold transition-all shadow-xs"
+            className="flex items-center gap-2 px-3.5 py-2 bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark rounded-xl text-xs font-bold transition-all shadow-xs"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export {activeTab === "orders" ? "Fulfillment CSV" : "Newsletter CSV"}</span>
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
+
+      {/* Error / Firestore Rules Notification Banner */}
+      {error && (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-xs text-amber-900 space-y-2">
+          <div className="flex items-center gap-2 font-bold text-amber-800">
+            <AlertCircle className="w-4 h-4 text-amber-700" />
+            <span>Firestore Permission Notice: {error}</span>
+          </div>
+          <p className="leading-relaxed">
+            If you see <em>"Missing or insufficient permissions"</em>, please ensure your Firestore Security Rules allow read access.
+            Go to <strong>Firebase Console ➔ Firestore Database ➔ Rules</strong> tab, paste the rules, and click <strong>Publish</strong>.
+          </p>
+        </div>
+      )}
 
       {/* 4 Core Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

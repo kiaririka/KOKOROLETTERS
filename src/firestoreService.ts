@@ -184,51 +184,41 @@ export interface NewsletterRecord {
  * Fetches all orders from Firestore.
  */
 export async function getAllOrders(): Promise<OrderRecord[]> {
-  try {
-    const snap = await getDocs(collection(db, "orders"));
-    const records: OrderRecord[] = [];
-    snap.forEach((d) => {
-      const data = d.data();
-      records.push({
-        id: d.id,
-        email: data.email || "",
-        shipping_address: data.shipping_address || "",
-        plan_tier: data.plan_tier || "India",
-        gateway: data.gateway || "Standard",
-        status: (data.status as any) || "Active",
-        createdDate: data.createdDate || "",
-        createdAt: data.createdAt
-      });
+  const snap = await getDocs(collection(db, "orders"));
+  const records: OrderRecord[] = [];
+  snap.forEach((d) => {
+    const data = d.data();
+    records.push({
+      id: d.id,
+      email: data.email || "",
+      shipping_address: data.shipping_address || "",
+      plan_tier: data.plan_tier || "India",
+      gateway: data.gateway || "Standard",
+      status: (data.status as any) || "Active",
+      createdDate: data.createdDate || "",
+      createdAt: data.createdAt
     });
-    return records;
-  } catch (err) {
-    console.warn("Firestore: Error fetching orders:", err);
-    return [];
-  }
+  });
+  return records;
 }
 
 /**
  * Fetches all newsletter members from Firestore.
  */
 export async function getAllNewsletter(): Promise<NewsletterRecord[]> {
-  try {
-    const snap = await getDocs(collection(db, "newsletter"));
-    const records: NewsletterRecord[] = [];
-    snap.forEach((d) => {
-      const data = d.data();
-      records.push({
-        id: d.id,
-        email: data.email || d.id,
-        name: data.name || "Traveler",
-        createdDate: data.createdDate || "",
-        createdAt: data.createdAt
-      });
+  const snap = await getDocs(collection(db, "newsletter"));
+  const records: NewsletterRecord[] = [];
+  snap.forEach((d) => {
+    const data = d.data();
+    records.push({
+      id: d.id,
+      email: data.email || d.id,
+      name: data.name || "Traveler",
+      createdDate: data.createdDate || "",
+      createdAt: data.createdAt
     });
-    return records;
-  } catch (err) {
-    console.warn("Firestore: Error fetching newsletter:", err);
-    return [];
-  }
+  });
+  return records;
 }
 
 /**
@@ -250,4 +240,40 @@ export async function updateOrderStatus(
     console.warn("Firestore: Error updating order status:", err);
     return false;
   }
+}
+
+/**
+ * Seeds sample subscribers and newsletter members to Cloud Firestore for initial setup.
+ */
+export async function seedSampleData(): Promise<{ orders: number; newsletter: number }> {
+  const sampleOrders = [
+    { email: "isha79799@gmail.com", shipping_address: "Flat 402, Lotus Garden, Bangalore 560001", plan_tier: "India", gateway: "Razorpay", status: "Active" as const },
+    { email: "kenji.tanaka@tokyo.jp", shipping_address: "3-14-1 Mejiro, Toshima-ku, Tokyo 171-0031", plan_tier: "International", gateway: "PayPal", status: "Renewed" as const },
+    { email: "hana.yamamoto@kyoto.jp", shipping_address: "12-4 Gion-machi, Higashiyama-ku, Kyoto 605-0073", plan_tier: "India", gateway: "Razorpay", status: "Cancelled" as const },
+  ];
+
+  const sampleNews = [
+    { name: "Isha", email: "isha79799@gmail.com" },
+    { name: "Chihiro Ogino", email: "chihiro@spiritrealm.jp" },
+    { name: "Satsuki Kusakabe", email: "satsuki@totoroforest.jp" },
+  ];
+
+  for (const o of sampleOrders) {
+    await addDoc(collection(db, "orders"), {
+      ...o,
+      createdAt: serverTimestamp(),
+      createdDate: new Date().toISOString()
+    });
+  }
+
+  for (const n of sampleNews) {
+    const docRef = doc(db, "newsletter", n.email);
+    await setDoc(docRef, {
+      ...n,
+      createdAt: serverTimestamp(),
+      createdDate: new Date().toISOString()
+    });
+  }
+
+  return { orders: sampleOrders.length, newsletter: sampleNews.length };
 }
