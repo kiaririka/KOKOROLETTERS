@@ -39,6 +39,11 @@ import FaqSection from "./components/FaqSection.tsx";
 import { Region, Subscriber, PlanTier, SubscriptionStatus } from "./types.ts";
 import { REGIONS_METADATA, LORE_DATA } from "./data/lore.ts";
 
+export const ADMIN_EMAILS = [
+  "isha79799@gmail.com",
+  "isha79799@gmail"
+];
+
 export default function App() {
   // Navigation State (Ghibli multi-page tabs)
   const [activeTab, setActiveTab] = useState<"journey" | "subscription" | "journal" | "newsletter" | "admin">("journey");
@@ -50,6 +55,12 @@ export default function App() {
     subscriber: Subscriber | null;
     unlocked_regions: string[];
   } | null>(null);
+
+  const isAdmin = Boolean(
+    session?.authenticated &&
+    session?.email &&
+    ADMIN_EMAILS.includes(session.email.trim().toLowerCase())
+  );
   
   const [regions, setRegions] = useState<Region[]>([]);
   const [activeRegionId, setActiveRegionId] = useState<string | null>(null);
@@ -154,6 +165,13 @@ export default function App() {
       setIsNewsletterSubscribed(false);
     }
   }, [session?.email]);
+
+  // Protect admin dashboard: if a non-admin is on the admin tab, redirect to journey
+  useEffect(() => {
+    if (activeTab === "admin" && !isAdmin) {
+      setActiveTab("journey");
+    }
+  }, [activeTab, isAdmin]);
 
   const fetchSession = async () => {
     try {
@@ -426,7 +444,7 @@ export default function App() {
               { id: "subscription", label: "Subscription" },
               { id: "journal", label: "Travel Journal" },
               { id: "newsletter", label: "Newsletter" },
-              { id: "admin", label: "Admin Dashboard" }
+              ...(isAdmin ? [{ id: "admin", label: "Admin Dashboard" }] : [])
             ].map(tab => (
               <button
                 key={tab.id}
@@ -732,8 +750,8 @@ export default function App() {
                     <button onClick={() => setActiveTab("subscription")} className="hover:text-ghibli-green-dark text-left">Subscription</button>
                     <button onClick={() => setActiveTab("journal")} className="hover:text-ghibli-green-dark text-left">Travel Journal</button>
                     <button onClick={() => setActiveTab("newsletter")} className="hover:text-ghibli-green-dark text-left">Newsletter</button>
-                    {import.meta.env.VITE_PREVIEW !== "true" && (
-                      <button onClick={() => setActiveTab("admin")} className="hover:text-ghibli-green-dark text-left font-mono text-[10px] text-ghibli-sage/60 mt-1 col-span-2">Admin Ledger</button>
+                    {isAdmin && (
+                      <button onClick={() => setActiveTab("admin")} className="hover:text-ghibli-green-dark text-left font-mono text-[10px] text-ghibli-sage/60 mt-1 col-span-2">Admin Dashboard</button>
                     )}
                   </div>
                 </div>
@@ -1843,7 +1861,7 @@ export default function App() {
             </motion.div>
           )}
 
-          {activeTab === "admin" && (
+          {activeTab === "admin" && isAdmin && (
             <motion.div
               key="admin"
               initial={{ opacity: 0, y: 10 }}
