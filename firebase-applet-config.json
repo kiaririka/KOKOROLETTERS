@@ -1,10 +1,9 @@
 {
-  "projectId": "gen-lang-client-0240609400",
-  "appId": "1:419887696556:web:b17ee975d12cf75899ed09",
-  "apiKey": "AIzaSyB_TJda61cHbStgvoLCxKaqQ9_KH0MxSOg",
-  "authDomain": "gen-lang-client-0240609400.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-kokoroletters-5d7c1419-0fed-4b68-bc22-1efd6149985f",
-  "storageBucket": "gen-lang-client-0240609400.firebasestorage.app",
-  "messagingSenderId": "419887696556",
-  "measurementId": ""
+  "projectId": "kokoro-letters",
+  "appId": "1:786255013135:web:a1e535b558319a9e1fca7a",
+  "apiKey": "AIzaSyBTlvRy95FWFAMGTGRznoFDsXphZ0sfEUI",
+  "authDomain": "kokoro-letters.firebaseapp.com",
+  "storageBucket": "kokoro-letters.firebasestorage.app",
+  "messagingSenderId": "786255013135",
+  "measurementId": "G-QJDXYCW5CK"
 }

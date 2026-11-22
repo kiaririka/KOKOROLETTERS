@@ -33,6 +33,7 @@ import {
 import JapanMap from "./components/JapanMap.tsx";
 import AdminDashboard from "./components/AdminDashboard.tsx";
 import { submitWaitlistEmail } from "./waitlist.ts";
+import { saveWaitlist, saveNewsletter, saveOrder } from "./firestoreService.ts";
 import MonthlyLetterShowcase from "./components/MonthlyLetterShowcase.tsx";
 import FaqSection from "./components/FaqSection.tsx";
 import { Region, Subscriber, PlanTier, SubscriptionStatus } from "./types.ts";
@@ -290,6 +291,14 @@ export default function App() {
       });
       const data = await res.json();
       if (data.success) {
+        // Save order and subscription data to Cloud Firestore
+        saveOrder({
+          email: directCheckoutEmail,
+          plan_tier: directCheckoutTier,
+          shipping_address: directCheckoutAddress,
+          gateway: directCheckoutGateway
+        }).catch(e => console.warn("Firestore saveOrder error:", e));
+
         setDirectCheckoutModalOpen(false);
         alert(import.meta.env.VITE_PREVIEW === "true"
           ? "🌿 Preview mode: no real payment was taken. You are signed in to a demo account so you can explore the travel journal."
@@ -649,9 +658,12 @@ export default function App() {
                       <p className="text-xs text-ghibli-sage">We will whisper the secrets of the next region to you soon. 🍃</p>
                     </div>
                   ) : (
-                    <form onSubmit={(e) => {
+                    <form onSubmit={async (e) => {
                       e.preventDefault();
-                      if (teaserEmail) setTeaserSent(true);
+                      if (teaserEmail) {
+                        setTeaserSent(true);
+                        await saveNewsletter(teaserName || "Traveler", teaserEmail);
+                      }
                     }} className="space-y-4">
                       <div>
                         <label className="text-[11px] font-semibold text-ghibli-sage block mb-1">Your Name</label>
@@ -723,9 +735,9 @@ export default function App() {
                           return;
                         }
                         try {
-                          const result = await submitWaitlistEmail(waitlistEmail.trim());
-                          alert(result === "sent" ? "You're on the list! 🍃" : "The waitlist isn't connected yet. Please check back soon!");
-                          if (result === "sent") setWaitlistEmail("");
+                          await saveWaitlist(waitlistEmail.trim(), "footer-teaser");
+                          alert("You're on the list! 🍃 We have recorded your interest.");
+                          setWaitlistEmail("");
                         } catch {
                           alert("Something went wrong. Please try again.");
                         }
@@ -1560,6 +1572,7 @@ export default function App() {
                                             });
                                             const data = await res.json();
                                             if (data.success) {
+                                              if (session?.email) { saveOrder({ email: session.email, plan_tier: checkoutTier, shipping_address: checkoutAddress, gateway: 'region-checkout' }).catch(function(e) { console.warn(e); }); }
                                               await fetchSession();
                                               triggerUnlockAnimation(activeRegion.region_id);
                                             } else {
@@ -1701,9 +1714,12 @@ export default function App() {
                     <p className="text-xs text-ghibli-sage">Thank you for wandering with us. Check your mailbox for whispers. 🍃</p>
                   </div>
                 ) : (
-                  <form onSubmit={(e) => {
+                  <form onSubmit={async (e) => {
                     e.preventDefault();
-                    if (newsletterEmail) setNewsletterSent(true);
+                    if (newsletterEmail) {
+                      setNewsletterSent(true);
+                      await saveNewsletter(newsletterName, newsletterEmail);
+                    }
                   }} className="space-y-4 text-left">
                     <div>
                       <label className="text-[11px] font-semibold text-ghibli-sage block mb-1">Traveler Name</label>
@@ -1905,6 +1921,7 @@ export default function App() {
                         });
                         const data = await res.json();
                         if (data.success) {
+                          saveOrder({ email: email, shipping_address: '108 Lotus Path, Block C, New Delhi 110001', plan_tier: simulatedTier, gateway: 'ticket-modal' }).catch(function(e) { console.warn(e); });
                           await fetchSession();
                           if (ticketRegion) {
                             setActiveRegionId(ticketRegion);
