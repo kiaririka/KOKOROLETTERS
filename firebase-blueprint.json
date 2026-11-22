@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "Subscriber": {
+      "collection": "subscribers",
+      "fields": {},
+      "rules": [
+        {
+          "allow": ["read", "write"],
+          "condition": "true"
+        }
+      ]
+    },
+    "SubscriptionEvent": {
+      "collection": "subscription_events",
+      "fields": {},
+      "rules": [
+        {
+          "allow": ["read", "write"],
+          "condition": "true"
+        }
+      ]
+    },
+    "Region": {
+      "collection": "regions",
+      "fields": {},
+      "rules": [
+        {
+          "allow": ["read", "write"],
+          "condition": "true"
+        }
+      ]
+    },
+    "MagicLink": {
+      "collection": "magic_links",
+      "fields": {},
+      "rules": [
+        {
+          "allow": ["read", "write"],
+          "condition": "true"
+        }
+      ]
+    },
+    "Session": {
+      "collection": "sessions",
+      "fields": {},
+      "rules": [
+        {
+          "allow": ["read", "write"],
+          "condition": "true"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Shippori+Mincho:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-serif: "Shippori Mincho", "Cinzel", serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-ghibli-green: #9cbfae;
+  --color-ghibli-green-dark: #1b2e24;
+  --color-ghibli-green-light: #e3ece8;
+  --color-ghibli-cream: #faf6eb;
+  --color-ghibli-cream-dark: #eedba5;
+  --color-ghibli-sand: #f5dfb8;
+  --color-ghibli-text: #1e2d24;
+  --color-ghibli-sage: #547365;
+}
+
+/* Custom styles for Kokoro Letters */
+.parchment-bg {
+  background-color: #faf6eb;
+  background-image: radial-gradient(#faf6eb 60%, #f4edd4 100%);
+}
+
+.parchment-border {
+  border: 1px solid #e7d8b5;
+}
+
+.serif-letter {
+  font-family: var(--font-serif);
+  line-height: 1.8;
+}
+
+/* Smooth active border animation and vintage card aesthetics */
+.vintage-border {
+  border: 1.5px solid #dcd3b9;
+}
+
+.vintage-shadow {
+  box-shadow: 0 4px 12px rgba(30, 45, 36, 0.05);
+}
+
