@@ -22,6 +22,22 @@ export function normalizeEmail(email: string): string {
 }
 
 /**
+ * Checks if a given email is already subscribed in the 'newsletter' collection.
+ */
+export async function isEmailInNewsletter(email: string): Promise<boolean> {
+  try {
+    const cleanEmail = normalizeEmail(email);
+    if (!cleanEmail || !cleanEmail.includes("@")) return false;
+    const docRef = doc(db, "newsletter", cleanEmail);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists();
+  } catch (err) {
+    console.warn("Firestore: Error checking newsletter status:", err);
+    return false;
+  }
+}
+
+/**
  * Saves a subscriber to the 'newsletter' collection in Cloud Firestore.
  * Uses the email as document ID to guarantee uniqueness.
  * Returns: 'success' | 'already-signed-up' | 'error'

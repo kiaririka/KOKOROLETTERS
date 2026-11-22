@@ -33,7 +33,7 @@ import {
 import JapanMap from "./components/JapanMap.tsx";
 import AdminDashboard from "./components/AdminDashboard.tsx";
 import { submitWaitlistEmail } from "./waitlist.ts";
-import { saveWaitlist, saveNewsletter, saveOrder } from "./firestoreService.ts";
+import { saveWaitlist, saveNewsletter, saveOrder, isEmailInNewsletter } from "./firestoreService.ts";
 import MonthlyLetterShowcase from "./components/MonthlyLetterShowcase.tsx";
 import FaqSection from "./components/FaqSection.tsx";
 import { Region, Subscriber, PlanTier, SubscriptionStatus } from "./types.ts";
@@ -80,6 +80,7 @@ export default function App() {
   const [newsletterName, setNewsletterName] = useState("");
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterSent, setNewsletterSent] = useState(false);
+  const [isNewsletterSubscribed, setIsNewsletterSubscribed] = useState(false);
 
   // Magic link generated for preview login (completely replaces the developer panel verification)
   const [generatedLink, setGeneratedLink] = useState("");
@@ -143,6 +144,17 @@ export default function App() {
     }
   }, []);
 
+  // Check if logged-in user is already subscribed to the newsletter
+  useEffect(() => {
+    if (session?.email) {
+      isEmailInNewsletter(session.email).then((subbed) => {
+        setIsNewsletterSubscribed(subbed);
+      }).catch(() => {});
+    } else {
+      setIsNewsletterSubscribed(false);
+    }
+  }, [session?.email]);
+
   const fetchSession = async () => {
     try {
       console.log("Fetching session...");
@@ -155,12 +167,9 @@ export default function App() {
       const data = await res.json();
       console.log("Session data:", data);
       
-      // Inject 'kanto' as an unlocked region for debugging purposes
-      if (data) {
-        if (!data.unlocked_regions) data.unlocked_regions = [];
-        if (!data.unlocked_regions.includes("kanto")) {
-          data.unlocked_regions.push("kanto");
-        }
+      // Ensure unlocked_regions array exists
+      if (data && !data.unlocked_regions) {
+        data.unlocked_regions = [];
       }
       
       setSession(data);
@@ -196,7 +205,6 @@ export default function App() {
 
   const checkRegionAuthorization = async (regionId: string): Promise<boolean> => {
     if (!session?.authenticated) return false;
-    if (regionId === "kanto") return true; // Always unlocked for debugging
 
     try {
       const res = await fetch(`/api/regions/check-access?region_id=${regionId}`);
@@ -649,7 +657,15 @@ export default function App() {
                 </p>
 
                 <div className="max-w-md mx-auto bg-white rounded-2xl p-6 border border-ghibli-cream-dark shadow-sm text-left">
-                  {teaserSent ? (
+                  {isNewsletterSubscribed ? (
+                    <div className="text-center py-6 space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto text-emerald-800">
+                        <Check className="w-6 h-6" />
+                      </div>
+                      <h4 className="font-serif font-bold text-base text-ghibli-green-dark">You are already subscribed! 🍃</h4>
+                      <p className="text-xs text-ghibli-sage">We will whisper the secrets of the upcoming region to {session?.email}.</p>
+                    </div>
+                  ) : teaserSent ? (
                     <div className="text-center py-6 space-y-3">
                       <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto text-emerald-800">
                         <Check className="w-6 h-6" />
@@ -724,7 +740,13 @@ export default function App() {
                 <div className="space-y-3">
                   <h4 className="font-serif font-bold text-sm text-ghibli-green-dark">Monthly Teasers</h4>
                   <p className="text-xs text-ghibli-sage mb-2">Whispers of the region to come, delivered to your inbox.</p>
-                  <div className="flex gap-2">
+                  {isNewsletterSubscribed ? (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-medium bg-white/80 p-2.5 rounded-xl border border-emerald-200">
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>You are already subscribed ({session?.email}) 🍃</span>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
                     <input
                       type="email"
                       value={waitlistEmail}
@@ -755,7 +777,8 @@ export default function App() {
                       className="bg-ghibli-sand hover:bg-[#eed7b1] px-3 py-1 rounded-lg text-xs font-semibold text-ghibli-green-dark"
                     >Join</button>
                   </div>
-                </div>
+                )}
+              </div>
               </footer>
             </motion.div>
           )}
@@ -951,7 +974,7 @@ export default function App() {
                       </p>
                     </div>
                     <div className="bg-[#e2edd3] text-emerald-800 text-xs px-3 py-1.5 rounded-xl font-mono font-bold border border-emerald-200 shrink-0">
-                      🌿 {session.unlocked_regions?.length || 1} of 12 Regions Covered
+                      🌿 {session.unlocked_regions?.length || 0} of 12 Regions Covered
                     </div>
                   </div>
 
@@ -962,7 +985,7 @@ export default function App() {
                         <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
                         Wandering Progress
                       </span>
-                      <span>{Math.round(((session.unlocked_regions?.length || 1) / 12) * 100)}% Completed</span>
+                      <span>{Math.round(((session.unlocked_regions?.length || 0) / 12) * 100)}% Completed</span>
                     </div>
                     <div className="h-3.5 bg-stone-100 rounded-full overflow-hidden border border-stone-200 p-0.5">
                       <motion.div
@@ -1399,7 +1422,7 @@ export default function App() {
                             <div className="flex justify-between items-center">
                               <span className="text-ghibli-sage font-mono text-[10px] font-bold">UNLOCKED REGIONS</span>
                               <span className="text-emerald-800 font-bold font-mono bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                                {session.unlocked_regions?.length || 1} of 12
+                                {session.unlocked_regions?.length || 0} of 12
                               </span>
                             </div>
                           </div>
@@ -1715,7 +1738,15 @@ export default function App() {
                   <p className="text-xs text-ghibli-sage">Free monthly teasers, straight from the meadow.</p>
                 </div>
 
-                {newsletterSent ? (
+                {isNewsletterSubscribed ? (
+                  <div className="text-center py-6 space-y-3">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto text-emerald-800">
+                      <Check className="w-6 h-6" />
+                    </div>
+                    <h4 className="font-serif font-bold text-base text-ghibli-green-dark">You are already subscribed! 🍃</h4>
+                    <p className="text-xs text-ghibli-sage">Your scroll is sealed with {session?.email}. You will receive every monthly whisper and teaser directly in your inbox.</p>
+                  </div>
+                ) : newsletterSent ? (
                   <div className="text-center py-6 space-y-3">
                     <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto text-emerald-800">
                       <Check className="w-6 h-6" />
