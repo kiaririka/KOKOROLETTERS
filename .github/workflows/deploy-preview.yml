@@ -39,6 +39,10 @@ jobs:
       - name: Create 404.html for SPA routing
         run: cp dist-preview/index.html dist-preview/404.html
 
+      # Remove any CNAME so GitHub Pages uses the default kiaririka.github.io URL.
+      - name: Remove custom domain (CNAME)
+        run: rm -f dist-preview/CNAME
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist-preview
