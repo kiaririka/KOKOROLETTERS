@@ -1,5 +1,15 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { 
+  getFirestore, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  addDoc, 
+  updateDoc, 
+  getDocs, 
+  collection, 
+  serverTimestamp 
+} from "firebase/firestore";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyBTlvRy95FWFAMGTGRznoFDsXphZ0sfEUI",
@@ -147,6 +157,97 @@ export async function saveOrder(orderData: {
     return true;
   } catch (err) {
     console.warn("Firestore: Error saving order:", err);
+    return false;
+  }
+}
+
+export interface OrderRecord {
+  id: string;
+  email: string;
+  shipping_address: string;
+  plan_tier: string;
+  gateway?: string;
+  status: "Active" | "Renewed" | "Cancelled" | "Submitted";
+  createdDate?: string;
+  createdAt?: any;
+}
+
+export interface NewsletterRecord {
+  id: string;
+  email: string;
+  name: string;
+  createdDate?: string;
+  createdAt?: any;
+}
+
+/**
+ * Fetches all orders from Firestore.
+ */
+export async function getAllOrders(): Promise<OrderRecord[]> {
+  try {
+    const snap = await getDocs(collection(db, "orders"));
+    const records: OrderRecord[] = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      records.push({
+        id: d.id,
+        email: data.email || "",
+        shipping_address: data.shipping_address || "",
+        plan_tier: data.plan_tier || "India",
+        gateway: data.gateway || "Standard",
+        status: (data.status as any) || "Active",
+        createdDate: data.createdDate || "",
+        createdAt: data.createdAt
+      });
+    });
+    return records;
+  } catch (err) {
+    console.warn("Firestore: Error fetching orders:", err);
+    return [];
+  }
+}
+
+/**
+ * Fetches all newsletter members from Firestore.
+ */
+export async function getAllNewsletter(): Promise<NewsletterRecord[]> {
+  try {
+    const snap = await getDocs(collection(db, "newsletter"));
+    const records: NewsletterRecord[] = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      records.push({
+        id: d.id,
+        email: data.email || d.id,
+        name: data.name || "Traveler",
+        createdDate: data.createdDate || "",
+        createdAt: data.createdAt
+      });
+    });
+    return records;
+  } catch (err) {
+    console.warn("Firestore: Error fetching newsletter:", err);
+    return [];
+  }
+}
+
+/**
+ * Updates a subscriber's order status in Firestore (Active, Renewed, Cancelled).
+ */
+export async function updateOrderStatus(
+  orderId: string, 
+  status: "Active" | "Renewed" | "Cancelled"
+): Promise<boolean> {
+  try {
+    const docRef = doc(db, "orders", orderId);
+    await updateDoc(docRef, {
+      status,
+      updatedAt: serverTimestamp(),
+      updatedDate: new Date().toISOString()
+    });
+    return true;
+  } catch (err) {
+    console.warn("Firestore: Error updating order status:", err);
     return false;
   }
 }
