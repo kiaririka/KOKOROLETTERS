@@ -661,8 +661,12 @@ export default function App() {
                     <form onSubmit={async (e) => {
                       e.preventDefault();
                       if (teaserEmail) {
-                        setTeaserSent(true);
-                        await saveNewsletter(teaserName || "Traveler", teaserEmail);
+                        const res = await saveNewsletter(teaserName || "Traveler", teaserEmail);
+                        if (res === "already-signed-up") {
+                          alert("You are already signed up! 🍃");
+                        } else {
+                          setTeaserSent(true);
+                        }
                       }
                     }} className="space-y-4">
                       <div>
@@ -735,9 +739,15 @@ export default function App() {
                           return;
                         }
                         try {
-                          await saveWaitlist(waitlistEmail.trim(), "footer-teaser");
-                          alert("You're on the list! 🍃 We have recorded your interest.");
-                          setWaitlistEmail("");
+                          const res = await saveNewsletter("Traveler", waitlistEmail.trim());
+                          if (res === "already-signed-up") {
+                            alert("You are already signed up! 🍃");
+                          } else if (res === "success") {
+                            alert("You're on the list! 🍃 Whispers of the next region will be sent to your inbox.");
+                            setWaitlistEmail("");
+                          } else {
+                            alert("Could not complete signup. Please try again.");
+                          }
                         } catch {
                           alert("Something went wrong. Please try again.");
                         }
@@ -1717,8 +1727,12 @@ export default function App() {
                   <form onSubmit={async (e) => {
                     e.preventDefault();
                     if (newsletterEmail) {
-                      setNewsletterSent(true);
-                      await saveNewsletter(newsletterName, newsletterEmail);
+                      const res = await saveNewsletter(newsletterName, newsletterEmail);
+                      if (res === "already-signed-up") {
+                        alert("You are already signed up! 🍃");
+                      } else {
+                        setNewsletterSent(true);
+                      }
                     }
                   }} className="space-y-4 text-left">
                     <div>

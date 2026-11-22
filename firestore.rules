@@ -2,22 +2,30 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Waitlist: visitors can append their email, but cannot read or modify others
-    match /waitlist/{docId} {
+    // Newsletter (including Monthly Teasers):
+    // Anyone can check if their own email exists (get) and register (create),
+    // but no one can list/download the full database or overwrite/delete records.
+    match /newsletter/{email} {
+      allow get: if true;
       allow create: if request.resource.data.email is string;
-      allow read, update, delete: if false;
+      allow update, delete: if false;
+      allow list: if false;
     }
 
-    // Newsletter: visitors can sign up, but cannot read or modify others
-    match /newsletter/{docId} {
+    // Waitlist:
+    match /waitlist/{email} {
+      allow get: if true;
       allow create: if request.resource.data.email is string;
-      allow read, update, delete: if false;
+      allow update, delete: if false;
+      allow list: if false;
     }
 
-    // Orders/Subscribers: visitors can submit orders, but cannot read or modify others
+    // Orders/Subscribers:
     match /orders/{docId} {
+      allow get: if true;
       allow create: if request.resource.data.email is string;
-      allow read, update, delete: if false;
+      allow update, delete: if false;
+      allow list: if false;
     }
   }
 }
