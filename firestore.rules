@@ -2,30 +2,30 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Newsletter (including Monthly Teasers):
-    // Anyone can check if their own email exists (get) and register (create),
-    // but no one can list/download the full database or overwrite/delete records.
+    // Newsletter & Monthly Teasers:
+    // Public visitors can register (create) and check their own email (get).
+    // Only authenticated admin (the monthly reminder script) can list all emails.
     match /newsletter/{email} {
       allow get: if true;
       allow create: if request.resource.data.email is string;
+      allow list: if request.auth != null;
       allow update, delete: if false;
-      allow list: if false;
     }
 
     // Waitlist:
     match /waitlist/{email} {
       allow get: if true;
       allow create: if request.resource.data.email is string;
+      allow list: if request.auth != null;
       allow update, delete: if false;
-      allow list: if false;
     }
 
-    // Orders/Subscribers:
+    // Orders / Subscriptions:
     match /orders/{docId} {
       allow get: if true;
       allow create: if request.resource.data.email is string;
+      allow list: if request.auth != null;
       allow update, delete: if false;
-      allow list: if false;
     }
   }
 }
