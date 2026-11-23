@@ -275,7 +275,7 @@ export async function updateOrderStatus(
 }
 
 /**
- * Updates a user's plan tier (between Standard and Deluxe) in Cloud Firestore.
+ * Updates a user's plan tier (between Standard and Bundle) in Cloud Firestore.
  */
 export async function updateUserPlan(email: string, newPlanTier: string): Promise<boolean> {
   try {

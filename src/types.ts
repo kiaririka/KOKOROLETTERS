@@ -4,7 +4,7 @@
  */
 
 export type SubscriptionStatus = 'Active' | 'Cancelled' | 'Paused' | 'Inactive';
-export type PlanTier = 'Standard' | 'Deluxe' | string;
+export type PlanTier = 'Standard' | 'Bundle' | string;
 export type Destination = 'India' | 'International';
 
 export interface Subscriber {

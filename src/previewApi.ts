@@ -134,7 +134,7 @@ async function handle(method: string, path: string, query: URLSearchParams, body
       const sub = upsertSubscriber(email, {
         subscription_status: 'Active',
         shipping_address: address,
-        plan_tier: (body.plan_tier as PlanTier) || 'India',
+        plan_tier: (body.plan_tier as PlanTier) || 'Standard (India)',
       });
       unlock(email, 'hokkaido');
       state.sessionEmail = email;
@@ -148,7 +148,7 @@ async function handle(method: string, path: string, query: URLSearchParams, body
       const sub = upsertSubscriber(s.email, {
         subscription_status: 'Active',
         shipping_address: String(body.shipping_address ?? '') || 'No address provided',
-        plan_tier: (body.plan_tier as PlanTier) || 'India',
+        plan_tier: (body.plan_tier as PlanTier) || 'Standard (India)',
       });
       if (body.region_id) unlock(s.email, String(body.region_id));
       saveState();

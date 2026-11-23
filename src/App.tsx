@@ -114,7 +114,7 @@ export default function App() {
   const [directCheckoutModalOpen, setDirectCheckoutModalOpen] = useState(false);
   const [directCheckoutEmail, setDirectCheckoutEmail] = useState("");
   const [directCheckoutAddress, setDirectCheckoutAddress] = useState("");
-  const [directCheckoutTier, setDirectCheckoutTier] = useState<"Standard" | "Deluxe">("Standard");
+  const [directCheckoutTier, setDirectCheckoutTier] = useState<"Standard" | "Bundle">("Standard");
   const [directCheckoutDestination, setDirectCheckoutDestination] = useState<"India" | "International">("India");
   const [directCheckoutGateway, setDirectCheckoutGateway] = useState<"razorpay" | "paypal">("razorpay");
 
@@ -126,7 +126,7 @@ export default function App() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [editAddressModalOpen, setEditAddressModalOpen] = useState(false);
   const [editAddressInput, setEditAddressInput] = useState("");
-  const [selectedPlanToChange, setSelectedPlanToChange] = useState<"Standard" | "Deluxe">("Deluxe");
+  const [selectedPlanToChange, setSelectedPlanToChange] = useState<"Standard" | "Bundle">("Bundle");
 
   // Loading & notification states for actions
   const [updatingPlan, setUpdatingPlan] = useState(false);
@@ -438,7 +438,7 @@ export default function App() {
   };
 
 
-  const handleChangePlan = async (newTier: "Standard" | "Deluxe") => {
+  const handleChangePlan = async (newTier: "Standard" | "Bundle") => {
     if (!session?.email) return;
     setUpdatingPlan(true);
     try {
@@ -878,7 +878,7 @@ export default function App() {
                         <button
                           onClick={() => {
                             const curTier = session.subscriber?.plan_tier || "Standard";
-                            setSelectedPlanToChange(curTier.toLowerCase().includes("deluxe") ? "Standard" : "Deluxe");
+                            setSelectedPlanToChange(curTier.toLowerCase().includes("bundle") ? "Standard" : "Bundle");
                             setChangePlanModalOpen(true);
                           }}
                           className="px-4 py-2 border border-ghibli-green text-ghibli-green-dark bg-white rounded-xl text-xs font-semibold hover:bg-ghibli-green-light transition-all cursor-pointer shadow-2xs"
@@ -1020,7 +1020,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* Two Tiers Subscription Grid (Standard & Deluxe for both Indian / International) */}
+              {/* Two Tiers Subscription Grid (Standard & Bundle for both Indian / International) */}
               <div id="passage-tiers-section" className="py-4 space-y-6">
                 <div className="text-center space-y-3">
                   <span className="text-[10px] font-mono text-ghibli-sage bg-ghibli-green-light px-3 py-1 rounded-full border border-ghibli-green/30 uppercase tracking-widest font-semibold">
@@ -1030,7 +1030,7 @@ export default function App() {
                     Choose Your Passage Tier
                   </h3>
                   <p className="text-xs text-ghibli-sage max-w-xl mx-auto leading-relaxed">
-                    Every monthly dispatch is authentically hand-printed and hand-packed. Select between our classic <strong>Standard</strong> and collector's <strong>Deluxe</strong> tiers.
+                    Every monthly dispatch is authentically hand-printed and hand-packed. Choose between our regular monthly <strong>Standard</strong> passage or the complete 12-month <strong>Bundle</strong>.
                   </p>
 
                   {/* Destination Toggle */}
@@ -1055,7 +1055,7 @@ export default function App() {
                       }`}
                     >
                       <span>🌏 International</span>
-                      <span className="text-[10px] font-mono opacity-80">($ USD)</span>
+                      <span className="text-[10px] font-mono opacity-80">(₹ INR)</span>
                     </button>
                   </div>
                 </div>
@@ -1066,7 +1066,7 @@ export default function App() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <span className="text-[10px] font-mono uppercase tracking-wider text-ghibli-sage font-bold">Classic Passage</span>
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-ghibli-sage font-bold">Regular Passage</span>
                           <h4 className="font-serif font-bold text-xl text-ghibli-green-dark mt-0.5">Standard Plan</h4>
                         </div>
                         <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
@@ -1076,13 +1076,15 @@ export default function App() {
 
                       <div className="space-y-1">
                         <span className="text-3xl font-serif font-bold text-ghibli-green-dark block">
-                          {planDestination === "India" ? "₹1,499" : "$29.99"}
-                          <span className="text-xs font-normal text-ghibli-sage font-sans"> / month</span>
+                          {planDestination === "India" ? "₹999" : "₹1,200 + ₹1,000"}
+                          <span className="text-xs font-normal text-ghibli-sage font-sans">
+                            {planDestination === "India" ? " / month" : " shipping / month"}
+                          </span>
                         </span>
                         <p className="text-xs text-ghibli-sage leading-relaxed">
                           {planDestination === "India" 
-                            ? "Free domestic speed-post from our Indian distribution hub. Delivered in 3-5 business days." 
-                            : "Tracked airmail dispatch directly from Tokyo. Delivered in 7-12 business days."}
+                            ? "Monthly based subscription. Free domestic speed-post across India." 
+                            : "Regular monthly subscription. Total ₹2,200/mo (₹1,200 kit + ₹1,000 tracked international airmail)."}
                         </p>
                       </div>
 
@@ -1125,61 +1127,67 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Deluxe Tier Card */}
+                  {/* Bundle Tier Card */}
                   <div className="bg-gradient-to-b from-[#fdfbf6] to-[#f7f2e4] border-2 border-amber-300/80 rounded-3xl p-6 flex flex-col justify-between space-y-6 relative vintage-shadow">
                     <span className="absolute -top-3 right-6 bg-gradient-to-r from-amber-600 to-amber-700 text-white text-[9px] font-mono uppercase font-bold px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
                       <Sparkles className="w-2.5 h-2.5" />
-                      Collector's Edition
+                      12-Month Full Journey
                     </span>
 
                     <div className="space-y-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <span className="text-[10px] font-mono uppercase tracking-wider text-amber-800 font-bold">Premium Passage</span>
-                          <h4 className="font-serif font-bold text-xl text-amber-950 mt-0.5">Deluxe Plan</h4>
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-amber-800 font-bold">Bulk Passage</span>
+                          <h4 className="font-serif font-bold text-xl text-amber-950 mt-0.5">Bundle Plan</h4>
                         </div>
                         <span className="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200">
-                          {planDestination === "India" ? "Priority Domestic" : "Express Airmail"}
+                          Yearly Subscription
                         </span>
                       </div>
 
                       <div className="space-y-1">
                         <span className="text-3xl font-serif font-bold text-amber-950 block">
-                          {planDestination === "India" ? "₹2,499" : "$44.99"}
-                          <span className="text-xs font-normal text-amber-800 font-sans"> / month</span>
+                          {planDestination === "India" ? "₹10,000" : "₹24,200"}
+                          <span className="text-xs font-normal text-amber-800 font-sans"> / year</span>
                         </span>
                         <p className="text-xs text-amber-900/80 leading-relaxed">
-                          The complete heirloom collector experience with exclusive artisanal Japanese artifacts in every dispatch.
+                          {planDestination === "India" 
+                            ? "Buying for all 12 months in bulk! Yearly subscription — save ₹1,988 compared to monthly." 
+                            : "Buying all 12 months in bulk: (₹1,200 × 11) + (₹1,000 shipping × 11). Pay for 11 months, get 1 month + shipping FREE!"}
                         </p>
                       </div>
 
                       <ul className="space-y-2 text-xs text-stone-800 pt-2 border-t border-amber-200/60">
                         <li className="flex items-center gap-2 font-semibold text-emerald-900">
                           <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                          <span>Includes everything in Standard Plan, plus:</span>
+                          <span>Complete 12-Month Japan Passage:</span>
                         </li>
                         <li className="flex items-center gap-2 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
-                          <span>🏮 Hand-Carved Japanese Hanko Stamp Seal</span>
+                          <span>📦 All 12 Hand-crafted Monthly Envelopes</span>
                         </li>
                         <li className="flex items-center gap-2 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
-                          <span>📌 2 Exclusive Enamel Collector Lapel Pins</span>
+                          <span>🖼️ Complete Set of 12 Ghibli Art Postcards</span>
                         </li>
                         <li className="flex items-center gap-2 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
-                          <span>📜 Gold-Foil Gilded Postcard Variant</span>
+                          <span>✨ All 12 Custom Anime Vinyl Stickers</span>
                         </li>
                         <li className="flex items-center gap-2 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
-                          <span>🍵 Artisan Japanese Green Tea Sample Packet</span>
+                          <span>🗺️ Physical Japan Collector Map & Passport Stamps</span>
+                        </li>
+                        <li className="flex items-center gap-2 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
+                          <span>🔒 Zero renewal worries — locked in for the entire year</span>
                         </li>
                       </ul>
                     </div>
 
                     <button
                       onClick={() => {
-                        setDirectCheckoutTier("Deluxe");
+                        setDirectCheckoutTier("Bundle");
                         setDirectCheckoutDestination(planDestination);
                         setDirectCheckoutGateway(planDestination === "India" ? "razorpay" : "paypal");
                         setDirectCheckoutEmail(session?.email || "");
@@ -1189,7 +1197,7 @@ export default function App() {
                       className="w-full py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-serif font-bold rounded-2xl text-xs transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                      <span>Subscribe to Deluxe ({planDestination === "India" ? "Razorpay" : "PayPal"})</span>
+                      <span>Subscribe to Bundle ({planDestination === "India" ? "Razorpay" : "PayPal"})</span>
                     </button>
                   </div>
                 </div>
@@ -1775,8 +1783,8 @@ export default function App() {
                       </span>
                       <span className="font-serif font-bold text-emerald-800">
                         {directCheckoutDestination === "India" 
-                          ? (directCheckoutTier === "Deluxe" ? "₹2,499/mo" : "₹1,499/mo")
-                          : (directCheckoutTier === "Deluxe" ? "$44.99/mo" : "$29.99/mo")}
+                          ? (directCheckoutTier === "Bundle" ? "₹10,000 / year (Bulk)" : "₹999 / month")
+                          : (directCheckoutTier === "Bundle" ? "₹24,200 / year (Bulk)" : "₹1,200 + ₹1,000 shp / mo")}
                       </span>
                     </div>
                     <span className="text-[10px] text-ghibli-sage block italic font-medium">
@@ -1843,7 +1851,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Change Plan Modal (Two tiers only: Standard and Deluxe) */}
+        {/* Change Plan Modal (Two tiers only: Standard and Bundle) */}
         <AnimatePresence>
           {changePlanModalOpen && (
             <motion.div
@@ -1903,47 +1911,47 @@ export default function App() {
                     >
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <h3 className="font-serif font-bold text-sm text-[#2d3b2f]">Standard</h3>
+                          <h3 className="font-serif font-bold text-sm text-[#2d3b2f]">Standard (Monthly)</h3>
                           {selectedPlanToChange === "Standard" && (
                             <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">✓</span>
                           )}
                         </div>
                         <p className="text-lg font-serif font-bold text-emerald-800">
-                          {session?.subscriber?.destination === "International" ? "$29.99" : "₹1,499"}
-                          <span className="text-xs font-normal text-stone-500"> / month</span>
+                          {session?.subscriber?.destination === "International" ? "₹1,200 + ₹1,000" : "₹999"}
+                          <span className="text-xs font-normal text-stone-500"> {session?.subscriber?.destination === "International" ? " shp/mo" : " / month"}</span>
                         </p>
                         <ul className="text-[11px] text-[#4a554a] mt-2 space-y-1 font-sans">
-                          <li>• 1 Hand-crafted letter</li>
-                          <li>• 1 Wax-sealed archival postcard</li>
+                          <li>• Regular monthly subscription</li>
+                          <li>• 1 Hand-crafted letter & postcard</li>
                           <li>• Full digital portal lore</li>
                         </ul>
                       </div>
                     </div>
 
-                    {/* Deluxe Tier */}
+                    {/* Bundle Tier */}
                     <div 
-                      onClick={() => setSelectedPlanToChange("Deluxe")}
+                      onClick={() => setSelectedPlanToChange("Bundle")}
                       className={`cursor-pointer rounded-xl p-4 border transition-all flex flex-col justify-between ${
-                        selectedPlanToChange === "Deluxe"
+                        selectedPlanToChange === "Bundle"
                           ? "bg-[#eaf1e7] border-emerald-600 shadow-sm"
                           : "bg-white/70 border-stone-200 hover:border-emerald-300"
                       }`}
                     >
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <h3 className="font-serif font-bold text-sm text-[#2d3b2f]">Deluxe</h3>
-                          {selectedPlanToChange === "Deluxe" && (
+                          <h3 className="font-serif font-bold text-sm text-[#2d3b2f]">Bundle (Yearly)</h3>
+                          {selectedPlanToChange === "Bundle" && (
                             <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">✓</span>
                           )}
                         </div>
                         <p className="text-lg font-serif font-bold text-emerald-800">
-                          {session?.subscriber?.destination === "International" ? "$44.99" : "₹2,499"}
-                          <span className="text-xs font-normal text-stone-500"> / month</span>
+                          {session?.subscriber?.destination === "International" ? "₹24,200" : "₹10,000"}
+                          <span className="text-xs font-normal text-stone-500"> / year</span>
                         </p>
                         <ul className="text-[11px] text-[#4a554a] mt-2 space-y-1 font-sans">
-                          <li>• Everything in Standard</li>
-                          <li>• Illustrated map art print</li>
-                          <li>• Seasonal washi tape & artifact</li>
+                          <li>• All 12 months in bulk</li>
+                          <li>• {session?.subscriber?.destination === "International" ? "Pay 11 mos, get 1 mo free!" : "Save ₹1,988 vs monthly"}</li>
+                          <li>• Complete 12-month passage guaranteed</li>
                         </ul>
                       </div>
                     </div>
