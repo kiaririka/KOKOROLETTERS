@@ -17,6 +17,7 @@ import {
   getAllNewsletter, 
   updateOrderStatus, 
   seedSampleData,
+  checkAndExpireOverdueSubscriptions,
   OrderRecord, 
   NewsletterRecord 
 } from "../firestoreService.ts";
@@ -40,6 +41,11 @@ export default function AdminDashboard() {
     setLoading(true);
     setError(null);
     try {
+      try {
+        await checkAndExpireOverdueSubscriptions();
+      } catch (checkErr) {
+        console.warn("Overdue deadline check notice:", checkErr);
+      }
       const [fetchedOrders, fetchedNews] = await Promise.all([
         getAllOrders(),
         getAllNewsletter()
@@ -131,10 +137,11 @@ export default function AdminDashboard() {
       alert("No subscriber orders to export yet.");
       return;
     }
-    const headers = ["Email", "Status", "Plan Tier", "Shipping Address", "Gateway", "Date"];
+    const headers = ["Email", "Status", "Cancellation Reason", "Plan Tier", "Shipping Address", "Gateway", "Date"];
     const rows = orders.map(o => [
       `"${o.email}"`,
       `"${o.status}"`,
+      `"${o.cancellation_reason || ''}"`,
       `"${o.plan_tier}"`,
       `"${o.shipping_address.replace(/"/g, '""')}"`,
       `"${o.gateway || 'Standard'}"`,
@@ -372,6 +379,11 @@ export default function AdminDashboard() {
                         {order.status === "Cancelled" && <AlertCircle className="w-2.5 h-2.5" />}
                         <span>{order.status || "Active"}</span>
                       </span>
+                      {order.cancellation_reason && (
+                        <span className="block text-[10px] text-rose-700 font-mono mt-1 font-medium bg-rose-50 px-2 py-0.5 rounded border border-rose-100 max-w-fit">
+                          Reason: {order.cancellation_reason}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-stone-600 font-medium">{order.plan_tier || "India"} Tier</td>
                     <td className="px-6 py-4 max-w-xs text-stone-500 truncate" title={order.shipping_address}>

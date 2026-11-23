@@ -29,12 +29,25 @@ import {
   Image,
   Tag,
   Coffee,
+  AlertCircle,
+  Edit3,
   X
 } from "lucide-react";
 import JapanMap from "./components/JapanMap.tsx";
 import AdminDashboard from "./components/AdminDashboard.tsx";
 import { submitWaitlistEmail } from "./waitlist.ts";
-import { saveWaitlist, saveNewsletter, saveOrder, isEmailInNewsletter } from "./firestoreService.ts";
+import { 
+  saveWaitlist, 
+  saveNewsletter, 
+  saveOrder, 
+  isEmailInNewsletter,
+  updateUserPlan,
+  cancelSubscription,
+  pauseSubscription,
+  updateUserAddress,
+  checkAndExpireOverdueSubscriptions,
+  getAllOrders
+} from "./firestoreService.ts";
 import MonthlyLetterShowcase from "./components/MonthlyLetterShowcase.tsx";
 import FaqSection from "./components/FaqSection.tsx";
 import { Region, Subscriber, PlanTier, SubscriptionStatus } from "./types.ts";
@@ -109,8 +122,25 @@ export default function App() {
   const [directCheckoutModalOpen, setDirectCheckoutModalOpen] = useState(false);
   const [directCheckoutEmail, setDirectCheckoutEmail] = useState("");
   const [directCheckoutAddress, setDirectCheckoutAddress] = useState("");
-  const [directCheckoutTier, setDirectCheckoutTier] = useState<PlanTier>("India");
+  const [directCheckoutTier, setDirectCheckoutTier] = useState<"Standard" | "Deluxe">("Standard");
+  const [directCheckoutDestination, setDirectCheckoutDestination] = useState<"India" | "International">("India");
   const [directCheckoutGateway, setDirectCheckoutGateway] = useState<"razorpay" | "paypal">("razorpay");
+
+  // Destination toggle for subscription plans: 'India' vs 'International'
+  const [planDestination, setPlanDestination] = useState<"India" | "International">("India");
+
+  // Modals for subscription management
+  const [changePlanModalOpen, setChangePlanModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [editAddressModalOpen, setEditAddressModalOpen] = useState(false);
+  const [editAddressInput, setEditAddressInput] = useState("");
+  const [selectedPlanToChange, setSelectedPlanToChange] = useState<"Standard" | "Deluxe">("Deluxe");
+
+  // Loading & notification states for actions
+  const [updatingPlan, setUpdatingPlan] = useState(false);
+  const [cancellingSub, setCancellingSub] = useState(false);
+  const [pausingSub, setPausingSub] = useState(false);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -189,6 +219,44 @@ export default function App() {
       // Ensure unlocked_regions array exists
       if (data && !data.unlocked_regions) {
         data.unlocked_regions = [];
+      }
+
+      // Requirement 2 & 3: Check deadline and sync real Firestore order data
+      if (data?.email) {
+        try {
+          await checkAndExpireOverdueSubscriptions(data.email);
+        } catch (e) {
+          console.warn("Overdue check error:", e);
+        }
+
+        try {
+          const allOrders = await getAllOrders();
+          const cleanEmail = data.email.toLowerCase().trim();
+          const userOrder = allOrders.find(o => o.email.toLowerCase().trim() === cleanEmail);
+          if (userOrder) {
+            if (!data.subscriber) {
+              data.subscriber = {
+                email: data.email,
+                shipping_address: userOrder.shipping_address || "",
+                subscription_status: userOrder.status as any,
+                plan_tier: userOrder.plan_tier,
+                destination: userOrder.destination || (userOrder.plan_tier.toLowerCase().includes("international") ? "International" : "India"),
+                cancellation_reason: userOrder.cancellation_reason || "",
+                payment_deadline: userOrder.payment_deadline || "",
+                createdAt: userOrder.createdDate || new Date().toISOString()
+              };
+            } else {
+              data.subscriber.subscription_status = userOrder.status as any;
+              data.subscriber.plan_tier = userOrder.plan_tier;
+              data.subscriber.shipping_address = userOrder.shipping_address || data.subscriber.shipping_address;
+              data.subscriber.cancellation_reason = userOrder.cancellation_reason || "";
+              data.subscriber.payment_deadline = userOrder.payment_deadline || "";
+              data.subscriber.destination = userOrder.destination || (userOrder.plan_tier.toLowerCase().includes("international") ? "International" : "India");
+            }
+          }
+        } catch (syncErr) {
+          console.warn("Firestore order sync notice:", syncErr);
+        }
       }
       
       setSession(data);
@@ -319,9 +387,11 @@ export default function App() {
       const data = await res.json();
       if (data.success) {
         // Save order and subscription data to Cloud Firestore
+        const fullTierName = `${directCheckoutTier} (${directCheckoutDestination})`;
         saveOrder({
           email: directCheckoutEmail,
-          plan_tier: directCheckoutTier,
+          plan_tier: fullTierName,
+          destination: directCheckoutDestination,
           shipping_address: directCheckoutAddress,
           gateway: directCheckoutGateway
         }).catch(e => console.warn("Firestore saveOrder error:", e));
@@ -376,10 +446,107 @@ export default function App() {
   };
 
 
+  const handleChangePlan = async (newTier: "Standard" | "Deluxe") => {
+    if (!session?.email) return;
+    setUpdatingPlan(true);
+    try {
+      const currentTierStr = session.subscriber?.plan_tier || "Standard (India)";
+      const isInternational = currentTierStr.toLowerCase().includes("international") || session.subscriber?.destination === "International";
+      const fullTierName = `${newTier} (${isInternational ? "International" : "India"})`;
+
+      await updateUserPlan(session.email, fullTierName);
+
+      await fetch("/api/subscriber/change-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan_tier: fullTierName })
+      });
+
+      await fetchSession();
+      setChangePlanModalOpen(false);
+      setActionNotice(`🌿 Plan successfully updated to ${newTier}! Your upcoming dispatches will reflect your new passage.`);
+      setTimeout(() => setActionNotice(null), 5000);
+    } catch (err: any) {
+      alert("Error changing plan: " + err.message);
+    } finally {
+      setUpdatingPlan(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!session?.email) return;
+    setCancellingSub(true);
+    try {
+      await cancelSubscription(session.email, "Cancelled by subscriber");
+
+      await fetch("/api/subscriber/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Cancelled by subscriber" })
+      });
+
+      await fetchSession();
+      setCancelModalOpen(false);
+      setActionNotice("Your subscription has been cancelled. If your monthly passage was already paid, it remains active until the end of the billing period.");
+      setTimeout(() => setActionNotice(null), 6000);
+    } catch (err: any) {
+      alert("Error cancelling subscription: " + err.message);
+    } finally {
+      setCancellingSub(false);
+    }
+  };
+
+  const handlePauseSubscription = async () => {
+    if (!session?.email) return;
+    setPausingSub(true);
+    try {
+      const res = await pauseSubscription(session.email);
+
+      await fetch("/api/subscriber/pause", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      await fetchSession();
+      setActionNotice(res.newStatus === "Paused" 
+        ? "⏸️ Subscription paused. You won't be charged for upcoming months until you resume." 
+        : "▶️ Subscription resumed! Welcome back to your active journey.");
+      setTimeout(() => setActionNotice(null), 5000);
+    } catch (err: any) {
+      alert("Error pausing subscription: " + err.message);
+    } finally {
+      setPausingSub(false);
+    }
+  };
+
+  const handleUpdateAddress = async () => {
+    if (!session?.email) return;
+    if (!editAddressInput || editAddressInput.trim().length < 5) {
+      alert("Please enter a valid, complete shipping address.");
+      return;
+    }
+    try {
+      await updateUserAddress(session.email, editAddressInput);
+      await fetch("/api/subscriber/update-address", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shipping_address: editAddressInput })
+      });
+      await fetchSession();
+      setEditAddressModalOpen(false);
+      setActionNotice("🌿 Shipping address updated in your dispatch records!");
+      setTimeout(() => setActionNotice(null), 4000);
+    } catch (err: any) {
+      alert("Error updating address: " + err.message);
+    }
+  };
+
   const activeRegion = regions.find(r => r.region_id === activeRegionId);
   const activeMetadata = REGIONS_METADATA.find(r => r.region_id === activeRegionId);
   const activeRegionMonthStatus = activeMetadata ? getRegionMonthStatus(activeMetadata.month) : "past";
-  const isSubscriberActive = session?.subscriber?.subscription_status === "Active";
+  const isSubscriberActive = session?.subscriber?.subscription_status === "Active" || session?.subscriber?.subscription_status === "Renewed";
+  const isSubscriberCancelled = session?.subscriber?.subscription_status === "Cancelled";
+  const isSubscriberPaused = session?.subscriber?.subscription_status === "Paused";
   const isUnlocked = isSubscriberActive && (session?.unlocked_regions?.includes(activeRegionId || "") || false);
 
   const handleToggleSound = (sound: "wind" | "river" | "ocean") => {
@@ -838,52 +1005,109 @@ export default function App() {
 
               {/* Your Subscription Status Card */}
               <div className="bg-white rounded-3xl p-6 border border-ghibli-green-light shadow-sm space-y-6">
-                <h3 className="text-lg font-bold font-serif text-ghibli-green-dark border-b border-ghibli-green-light pb-3">
-                  Your Subscription
-                </h3>
+                <div className="flex justify-between items-center border-b border-ghibli-green-light pb-3">
+                  <h3 className="text-lg font-bold font-serif text-ghibli-green-dark">
+                    Your Subscription
+                  </h3>
+                  {session?.subscriber?.subscription_status && (
+                    <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 ${
+                      isSubscriberActive 
+                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                        : isSubscriberPaused
+                        ? "bg-amber-50 text-amber-800 border border-amber-200"
+                        : "bg-rose-50 text-rose-800 border border-rose-200"
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${isSubscriberActive ? "bg-emerald-600 animate-pulse" : isSubscriberPaused ? "bg-amber-600" : "bg-rose-600"}`} />
+                      <span>{session.subscriber.subscription_status}</span>
+                    </span>
+                  )}
+                </div>
+
+                {actionNotice && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-medium">
+                    {actionNotice}
+                  </div>
+                )}
 
                 {session?.authenticated ? (
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div className="space-y-2">
-                      <span className="text-[10px] text-ghibli-sage font-mono block">PLAN TIER</span>
-                      <span className="text-xl font-bold text-ghibli-green-dark font-serif block">
-                        {isSubscriberActive ? `${session.subscriber?.plan_tier} Plan` : "No Active Plan"}
-                      </span>
-                      <div className="flex gap-4 text-xs font-mono text-ghibli-sage">
-                        <span>Status: <strong className={isSubscriberActive ? "text-emerald-700" : "text-stone-500"}>{isSubscriberActive ? "Active" : "Pending Activation"}</strong></span>
-                        {isSubscriberActive && (
-                          <>
-                            <span>Billing: Razorpay/PayPal</span>
-                            <span>Created: {new Date(session.subscriber?.createdAt || "").toLocaleDateString()}</span>
-                          </>
-                        )}
+                  <div className="space-y-5">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                      <div className="space-y-2">
+                        <span className="text-[10px] text-ghibli-sage font-mono block uppercase tracking-wider">PLAN TIER</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl font-bold text-ghibli-green-dark font-serif">
+                            {session.subscriber?.plan_tier ? `${session.subscriber.plan_tier}` : "Standard Plan"}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-4 text-xs font-mono text-ghibli-sage">
+                          <span>
+                            Status: <strong className={isSubscriberActive ? "text-emerald-700" : isSubscriberPaused ? "text-amber-700" : "text-rose-700"}>
+                              {session.subscriber?.subscription_status || "Inactive"}
+                            </strong>
+                          </span>
+                          <span>Billing: Razorpay/PayPal</span>
+                          {session.subscriber?.createdAt && (
+                            <span>Created: {new Date(session.subscriber.createdAt).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Interactive Action Buttons */}
+                      <div className="flex flex-wrap gap-2 shrink-0">
+                        <button
+                          onClick={() => {
+                            const curTier = session.subscriber?.plan_tier || "Standard";
+                            setSelectedPlanToChange(curTier.toLowerCase().includes("deluxe") ? "Standard" : "Deluxe");
+                            setChangePlanModalOpen(true);
+                          }}
+                          className="px-4 py-2 border border-ghibli-green text-ghibli-green-dark bg-white rounded-xl text-xs font-semibold hover:bg-ghibli-green-light transition-all cursor-pointer shadow-2xs"
+                        >
+                          Change Plan
+                        </button>
+                        <button
+                          onClick={handlePauseSubscription}
+                          disabled={pausingSub || isSubscriberCancelled}
+                          className="px-4 py-2 bg-[#eedba5] hover:bg-[#e4cb8f] text-stone-800 rounded-xl text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-2xs"
+                        >
+                          {pausingSub ? "Updating..." : isSubscriberPaused ? "Resume Subscription" : "Pause Subscription"}
+                        </button>
+                        <button
+                          onClick={() => setCancelModalOpen(true)}
+                          disabled={cancellingSub || isSubscriberCancelled}
+                          className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-2xs"
+                        >
+                          {isSubscriberCancelled ? "Cancelled" : "Cancel Subscription"}
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        onClick={() => {
-                          document.getElementById("passage-tiers-section")?.scrollIntoView({ behavior: "smooth" });
-                        }}
-                        className="px-4 py-2 border border-ghibli-green text-ghibli-green-dark rounded-xl text-xs font-semibold hover:bg-ghibli-green-light transition-all"
-                      >
-                        Change Plan
-                      </button>
-                      <button
-                        disabled={!isSubscriberActive}
-                        onClick={() => alert("Subscription paused in sandbox environment!")}
-                        className="px-4 py-2 bg-ghibli-sand hover:bg-[#eed7b1] text-ghibli-green-dark rounded-xl text-xs font-semibold disabled:opacity-50 transition-all"
-                      >
-                        Pause Subscription
-                      </button>
-                      <button
-                        disabled={!isSubscriberActive}
-                        onClick={() => alert("Subscription cancelled in sandbox environment!")}
-                        className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold disabled:opacity-50 transition-all"
-                      >
-                        Cancel Subscription
-                      </button>
-                    </div>
+                    {/* Cancellation Notice Banner (Requirement 3: "not payed yet" reason display) */}
+                    {isSubscriberCancelled && (
+                      <div className="p-4 rounded-2xl bg-rose-50/80 border border-rose-200 text-xs text-rose-900 space-y-2">
+                        <div className="flex items-center gap-2 font-bold text-rose-800">
+                          <AlertCircle className="w-4 h-4 text-rose-700 shrink-0" />
+                          <span>Subscription Cancelled</span>
+                          {session.subscriber?.cancellation_reason && (
+                            <span className="font-mono text-[11px] bg-rose-100 px-2 py-0.5 rounded border border-rose-300">
+                              Reason: {session.subscriber.cancellation_reason}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-rose-800/90 leading-relaxed">
+                          {session.subscriber?.cancellation_reason === "not payed yet"
+                            ? "Your subscription was automatically cancelled because next month's payment was not received before the deadline cutoff. You can re-subscribe or renew below anytime to resume your monthly parcels."
+                            : "Your subscription has been cancelled upon request. If you had active paid dispatches for the current month, they will still be fulfilled."}
+                        </p>
+                        <button
+                          onClick={() => {
+                            document.getElementById("passage-tiers-section")?.scrollIntoView({ behavior: "smooth" });
+                          }}
+                          className="mt-1 px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white rounded-lg font-semibold text-xs transition-colors cursor-pointer"
+                        >
+                          Renew / Re-subscribe Now →
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   /* Magic Link Form inside Subscription if guest */
@@ -963,28 +1187,11 @@ export default function App() {
                       )}
                     </div>
                     <button
-                      onClick={async () => {
-                        const newAddr = prompt("Enter new shipping address:", session.subscriber?.shipping_address || "");
-                        if (newAddr) {
-                          try {
-                            const res = await fetch("/api/subscriber/update-address", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ shipping_address: newAddr })
-                            });
-                            const data = await res.json();
-                            if (data.success) {
-                              setCheckoutAddress(newAddr);
-                              await fetchSession();
-                            } else {
-                              alert(data.error || "Failed to update address.");
-                            }
-                          } catch (err: any) {
-                            alert("Network error: " + err.message);
-                          }
-                        }
+                      onClick={() => {
+                        setEditAddressInput(session.subscriber?.shipping_address || "");
+                        setEditAddressModalOpen(true);
                       }}
-                      className="px-4 py-2 border border-ghibli-green text-ghibli-green-dark rounded-xl text-xs font-semibold hover:bg-ghibli-green-light transition-all"
+                      className="px-4 py-2 border border-ghibli-green text-ghibli-green-dark rounded-xl text-xs font-semibold hover:bg-ghibli-green-light transition-all cursor-pointer"
                     >
                       Edit Address
                     </button>
@@ -1097,48 +1304,90 @@ export default function App() {
                 </div>
               )}
 
-              {/* Single Subscription Tier Grid */}
+              {/* Two Tiers Subscription Grid (Standard & Deluxe for both Indian / International) */}
               <div id="passage-tiers-section" className="py-4 space-y-6">
-                <div className="text-center space-y-1">
-                  <span className="text-[10px] font-mono text-ghibli-sage bg-ghibli-green-light px-2.5 py-1 rounded-full">One Single Premium Tier</span>
-                  <h3 className="text-2xl font-bold font-serif text-ghibli-green-dark pt-2">
-                    Kokoro Letters Monthly Mail Club
+                <div className="text-center space-y-3">
+                  <span className="text-[10px] font-mono text-ghibli-sage bg-ghibli-green-light px-3 py-1 rounded-full border border-ghibli-green/30 uppercase tracking-widest font-semibold">
+                    Two Sacred Tiers
+                  </span>
+                  <h3 className="text-2xl md:text-3xl font-bold font-serif text-ghibli-green-dark">
+                    Choose Your Passage Tier
                   </h3>
-                  <p className="text-xs text-ghibli-sage max-w-xl mx-auto">
-                    We offer one single, uncompromising premium experience. Every monthly dispatch is entirely hand-printed and hand-packed. The only difference is your shipping destination.
+                  <p className="text-xs text-ghibli-sage max-w-xl mx-auto leading-relaxed">
+                    Every monthly dispatch is authentically hand-printed and hand-packed. Select between our classic <strong>Standard</strong> and collector's <strong>Deluxe</strong> tiers.
                   </p>
+
+                  {/* Destination Toggle */}
+                  <div className="inline-flex items-center p-1.5 bg-white border border-ghibli-green-light rounded-2xl shadow-xs mt-2">
+                    <button
+                      onClick={() => setPlanDestination("India")}
+                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        planDestination === "India"
+                          ? "bg-ghibli-green-dark text-[#eedba5] shadow-xs"
+                          : "text-stone-500 hover:text-stone-800"
+                      }`}
+                    >
+                      <span>🇮🇳 Domestic India</span>
+                      <span className="text-[10px] font-mono opacity-80">(₹ INR)</span>
+                    </button>
+                    <button
+                      onClick={() => setPlanDestination("International")}
+                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        planDestination === "International"
+                          ? "bg-ghibli-green-dark text-[#eedba5] shadow-xs"
+                          : "text-stone-500 hover:text-stone-800"
+                      }`}
+                    >
+                      <span>🌏 International</span>
+                      <span className="text-[10px] font-mono opacity-80">($ USD)</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                  {/* Domestic India Card */}
-                  <div className="bg-ghibli-cream border border-ghibli-cream-dark rounded-2xl p-6 flex flex-col justify-between space-y-6 relative vintage-shadow">
-                    <span className="absolute -top-3 right-4 bg-emerald-700 text-white text-[9px] font-mono uppercase font-bold px-3 py-1 rounded-full shadow-xs">
-                      Domestic Delivery
-                    </span>
+                  {/* Standard Tier Card */}
+                  <div className="bg-ghibli-cream border border-ghibli-cream-dark rounded-3xl p-6 flex flex-col justify-between space-y-6 relative vintage-shadow">
                     <div className="space-y-4">
-                      <h4 className="font-serif font-bold text-lg text-ghibli-green-dark">Domestic India Plan</h4>
-                      <span className="text-2xl font-serif font-bold text-ghibli-green-dark block">₹1,499 / mo</span>
-                      <p className="text-xs text-ghibli-sage leading-relaxed">
-                        Free domestic speed-post from our Indian distribution hub. Delivered in 3-5 business days.
-                      </p>
-                      <ul className="space-y-2 text-xs text-ghibli-green-dark">
-                        <li className="flex items-center gap-1.5 font-medium">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-ghibli-sage font-bold">Classic Passage</span>
+                          <h4 className="font-serif font-bold text-xl text-ghibli-green-dark mt-0.5">Standard Plan</h4>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                          {planDestination === "India" ? "Domestic Speed-Post" : "Tracked Airmail"}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-3xl font-serif font-bold text-ghibli-green-dark block">
+                          {planDestination === "India" ? "₹1,499" : "$29.99"}
+                          <span className="text-xs font-normal text-ghibli-sage font-sans"> / month</span>
+                        </span>
+                        <p className="text-xs text-ghibli-sage leading-relaxed">
+                          {planDestination === "India" 
+                            ? "Free domestic speed-post from our Indian distribution hub. Delivered in 3-5 business days." 
+                            : "Tracked airmail dispatch directly from Tokyo. Delivered in 7-12 business days."}
+                        </p>
+                      </div>
+
+                      <ul className="space-y-2 text-xs text-ghibli-green-dark pt-2 border-t border-ghibli-green-light/40">
+                        <li className="flex items-center gap-2 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
-                          <span>🖼️ Hand-printed Ghibli Art Print</span>
+                          <span>🖼️ Hand-printed Ghibli-Style Art Postcard</span>
                         </li>
-                        <li className="flex items-center gap-1.5 font-medium">
+                        <li className="flex items-center gap-2 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
-                          <span>✨ Character-Inspired Vinyl Sticker</span>
+                          <span>✨ Character-Inspired Matte Vinyl Sticker</span>
                         </li>
-                        <li className="flex items-center gap-1.5 font-medium">
+                        <li className="flex items-center gap-2 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
-                          <span>🏷️ Collectible Region Map Sticker</span>
+                          <span>🏷️ Collectible Region Map Passport Stamp</span>
                         </li>
-                        <li className="flex items-center gap-1.5 font-medium">
+                        <li className="flex items-center gap-2 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
                           <span>📖 Hand-sealed Creator's Lore Letter</span>
                         </li>
-                        <li className="flex items-center gap-1.5 font-medium">
+                        <li className="flex items-center gap-2 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
                           <span>🎁 First-Month Welcome Gift: Physical Japan Map</span>
                         </li>
@@ -1147,80 +1396,84 @@ export default function App() {
 
                     <button
                       onClick={() => {
-                        setCheckoutTier("India");
-                        if (!session?.authenticated) {
-                          setDirectCheckoutTier("India");
-                          setDirectCheckoutGateway("razorpay");
-                          setDirectCheckoutEmail("");
-                          setDirectCheckoutAddress("");
-                          setDirectCheckoutModalOpen(true);
-                          return;
-                        }
-                        setActiveTab("journal");
-                        setTimeout(() => {
-                          document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
-                        }, 100);
+                        setDirectCheckoutTier("Standard");
+                        setDirectCheckoutDestination(planDestination);
+                        setDirectCheckoutGateway(planDestination === "India" ? "razorpay" : "paypal");
+                        setDirectCheckoutEmail(session?.email || "");
+                        setDirectCheckoutAddress(session?.subscriber?.shipping_address || "");
+                        setDirectCheckoutModalOpen(true);
                       }}
-                      className="w-full py-2.5 bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark font-serif font-bold rounded-xl text-xs transition-all shadow-xs"
+                      className="w-full py-3 bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark font-serif font-bold rounded-2xl text-xs transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      Subscribe via Razorpay
+                      <span>Subscribe to Standard ({planDestination === "India" ? "Razorpay" : "PayPal"})</span>
                     </button>
                   </div>
 
-                  {/* International Card */}
-                  <div className="bg-ghibli-cream border border-[#d3cbbe] rounded-2xl p-6 flex flex-col justify-between space-y-6 relative vintage-shadow">
-                    <span className="absolute -top-3 right-4 bg-[#78350f] text-white text-[9px] font-mono uppercase font-bold px-3 py-1 rounded-full shadow-xs">
-                      Worldwide tracked airmail
+                  {/* Deluxe Tier Card */}
+                  <div className="bg-gradient-to-b from-[#fdfbf6] to-[#f7f2e4] border-2 border-amber-300/80 rounded-3xl p-6 flex flex-col justify-between space-y-6 relative vintage-shadow">
+                    <span className="absolute -top-3 right-6 bg-gradient-to-r from-amber-600 to-amber-700 text-white text-[9px] font-mono uppercase font-bold px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      Collector's Edition
                     </span>
+
                     <div className="space-y-4">
-                      <h4 className="font-serif font-bold text-lg text-ghibli-green-dark">International Plan</h4>
-                      <span className="text-2xl font-serif font-bold text-[#78350f] block">$29.99 / mo</span>
-                      <p className="text-xs text-ghibli-sage leading-relaxed">
-                        Tracked global shipping directly from Tokyo. Customs pre-cleared, delivered in 7-12 business days.
-                      </p>
-                      <ul className="space-y-2 text-xs text-ghibli-green-dark">
-                        <li className="flex items-center gap-1.5 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#78350f] shrink-0" />
-                          <span>🖼️ Hand-printed Ghibli Art Print</span>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-amber-800 font-bold">Premium Passage</span>
+                          <h4 className="font-serif font-bold text-xl text-amber-950 mt-0.5">Deluxe Plan</h4>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200">
+                          {planDestination === "India" ? "Priority Domestic" : "Express Airmail"}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-3xl font-serif font-bold text-amber-950 block">
+                          {planDestination === "India" ? "₹2,499" : "$44.99"}
+                          <span className="text-xs font-normal text-amber-800 font-sans"> / month</span>
+                        </span>
+                        <p className="text-xs text-amber-900/80 leading-relaxed">
+                          The complete heirloom collector experience with exclusive artisanal Japanese artifacts in every dispatch.
+                        </p>
+                      </div>
+
+                      <ul className="space-y-2 text-xs text-stone-800 pt-2 border-t border-amber-200/60">
+                        <li className="flex items-center gap-2 font-semibold text-emerald-900">
+                          <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                          <span>Includes everything in Standard Plan, plus:</span>
                         </li>
-                        <li className="flex items-center gap-1.5 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#78350f] shrink-0" />
-                          <span>✨ Character-Inspired Vinyl Sticker</span>
+                        <li className="flex items-center gap-2 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
+                          <span>🏮 Hand-Carved Japanese Hanko Stamp Seal</span>
                         </li>
-                        <li className="flex items-center gap-1.5 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#78350f] shrink-0" />
-                          <span>🏷️ Collectible Region Map Sticker</span>
+                        <li className="flex items-center gap-2 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
+                          <span>📌 2 Exclusive Enamel Collector Lapel Pins</span>
                         </li>
-                        <li className="flex items-center gap-1.5 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#78350f] shrink-0" />
-                          <span>📖 Hand-sealed Creator's Lore Letter</span>
+                        <li className="flex items-center gap-2 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
+                          <span>📜 Gold-Foil Gilded Postcard Variant</span>
                         </li>
-                        <li className="flex items-center gap-1.5 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#78350f] shrink-0" />
-                          <span>🎁 First-Month Welcome Gift: Physical Japan Map</span>
+                        <li className="flex items-center gap-2 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
+                          <span>🍵 Artisan Japanese Green Tea Sample Packet</span>
                         </li>
                       </ul>
                     </div>
 
                     <button
                       onClick={() => {
-                        setCheckoutTier("International");
-                        if (!session?.authenticated) {
-                          setDirectCheckoutTier("International");
-                          setDirectCheckoutGateway("paypal");
-                          setDirectCheckoutEmail("");
-                          setDirectCheckoutAddress("");
-                          setDirectCheckoutModalOpen(true);
-                          return;
-                        }
-                        setActiveTab("journal");
-                        setTimeout(() => {
-                          document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
-                        }, 100);
+                        setDirectCheckoutTier("Deluxe");
+                        setDirectCheckoutDestination(planDestination);
+                        setDirectCheckoutGateway(planDestination === "India" ? "razorpay" : "paypal");
+                        setDirectCheckoutEmail(session?.email || "");
+                        setDirectCheckoutAddress(session?.subscriber?.shipping_address || "");
+                        setDirectCheckoutModalOpen(true);
                       }}
-                      className="w-full py-2.5 bg-stone-700 hover:bg-stone-800 text-white font-serif font-bold rounded-xl text-xs transition-all shadow-xs"
+                      className="w-full py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-serif font-bold rounded-2xl text-xs transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      Subscribe via PayPal
+                      <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                      <span>Subscribe to Deluxe ({planDestination === "India" ? "Razorpay" : "PayPal"})</span>
                     </button>
                   </div>
                 </div>
@@ -1966,7 +2219,6 @@ export default function App() {
                           <option value="" disabled>Select a plan…</option>
                           <option value="Standard">Standard</option>
                           <option value="Deluxe">Deluxe</option>
-                          <option value="Collector's">Collector's</option>
                         </select>
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#8fa189]">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -1981,7 +2233,8 @@ export default function App() {
                       setTicketModalOpen(false);
                       setSimulatingWebhook(true);
                       
-                      const simulatedTier = ticketPlan === "Collector's" ? "International" : "India";
+                      const selectedPlan = ticketPlan || "Standard";
+                      const fullTier = `${selectedPlan} (${ticketCountry})`;
                       
                       try {
                         const res = await fetch("/api/checkout", {
@@ -1992,13 +2245,19 @@ export default function App() {
                           body: JSON.stringify({
                             email,
                             shipping_address: "108 Lotus Path, Block C, New Delhi 110001",
-                            plan_tier: simulatedTier,
+                            plan_tier: fullTier,
                             region_id: ticketRegion
                           })
                         });
                         const data = await res.json();
                         if (data.success) {
-                          saveOrder({ email: email, shipping_address: '108 Lotus Path, Block C, New Delhi 110001', plan_tier: simulatedTier, gateway: 'ticket-modal' }).catch(function(e) { console.warn(e); });
+                          saveOrder({ 
+                            email: email, 
+                            shipping_address: '108 Lotus Path, Block C, New Delhi 110001', 
+                            plan_tier: fullTier, 
+                            destination: ticketCountry,
+                            gateway: 'ticket-modal' 
+                          }).catch(function(e) { console.warn(e); });
                           await fetchSession();
                           if (ticketRegion) {
                             setActiveRegionId(ticketRegion);
@@ -2073,10 +2332,12 @@ export default function App() {
                     <span className="text-[9px] font-mono font-bold text-emerald-800 uppercase tracking-wider block">Selected Passage</span>
                     <div className="flex justify-between items-center">
                       <span className="font-serif font-bold text-sm text-[#3d4c41]">
-                        {directCheckoutTier === "India" ? "Domestic India Plan" : "International Plan"}
+                        {directCheckoutTier} Passage ({directCheckoutDestination === "India" ? "Domestic India" : "International"})
                       </span>
                       <span className="font-serif font-bold text-emerald-800">
-                        {directCheckoutTier === "India" ? "₹1,499/mo" : "$29.99/mo"}
+                        {directCheckoutDestination === "India" 
+                          ? (directCheckoutTier === "Deluxe" ? "₹2,499/mo" : "₹1,499/mo")
+                          : (directCheckoutTier === "Deluxe" ? "$44.99/mo" : "$29.99/mo")}
                       </span>
                     </div>
                     <span className="text-[10px] text-ghibli-sage block italic font-medium">
@@ -2138,6 +2399,302 @@ export default function App() {
                     )}
                   </button>
                 </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Change Plan Modal (Two tiers only: Standard and Deluxe) */}
+        <AnimatePresence>
+          {changePlanModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="bg-[#fbf9f4] w-full max-w-lg rounded-2xl shadow-xl overflow-hidden relative border border-[#e7d8b5]"
+              >
+                <div className="absolute inset-2 border-[1.5px] border-[#dcd3b9] rounded-xl pointer-events-none" />
+                
+                <div className="p-8 relative z-10 space-y-5">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-widest">
+                        🌿 Subscription Ledger
+                      </span>
+                      <h2 className="text-2xl font-serif font-bold text-[#3d4c41] mt-2 tracking-tight">
+                        Change Passage Tier
+                      </h2>
+                      <p className="text-xs text-ghibli-sage leading-relaxed mt-1">
+                        Select your preferred tier for all upcoming monthly dispatches. Changes take effect on your next parcel cycle.
+                      </p>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setChangePlanModalOpen(false)}
+                      className="text-stone-400 hover:text-stone-700 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Destination info badge */}
+                  <div className="bg-[#f2f6ee] px-4 py-2 rounded-lg border border-[#d2dfcb] flex justify-between items-center text-xs">
+                    <span className="text-ghibli-sage font-medium">Your Destination:</span>
+                    <span className="font-serif font-bold text-[#3d4c41]">
+                      {session?.subscriber?.destination === "International" ? "🌏 International" : "🇮🇳 Domestic India"}
+                    </span>
+                  </div>
+
+                  {/* Tier Choice Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {/* Standard Tier */}
+                    <div 
+                      onClick={() => setSelectedPlanToChange("Standard")}
+                      className={`cursor-pointer rounded-xl p-4 border transition-all flex flex-col justify-between ${
+                        selectedPlanToChange === "Standard"
+                          ? "bg-[#eaf1e7] border-emerald-600 shadow-sm"
+                          : "bg-white/70 border-stone-200 hover:border-emerald-300"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <h3 className="font-serif font-bold text-sm text-[#2d3b2f]">Standard</h3>
+                          {selectedPlanToChange === "Standard" && (
+                            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">✓</span>
+                          )}
+                        </div>
+                        <p className="text-lg font-serif font-bold text-emerald-800">
+                          {session?.subscriber?.destination === "International" ? "$29.99" : "₹1,499"}
+                          <span className="text-xs font-normal text-stone-500"> / month</span>
+                        </p>
+                        <ul className="text-[11px] text-[#4a554a] mt-2 space-y-1 font-sans">
+                          <li>• 1 Hand-crafted letter</li>
+                          <li>• 1 Wax-sealed archival postcard</li>
+                          <li>• Full digital portal lore</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Deluxe Tier */}
+                    <div 
+                      onClick={() => setSelectedPlanToChange("Deluxe")}
+                      className={`cursor-pointer rounded-xl p-4 border transition-all flex flex-col justify-between ${
+                        selectedPlanToChange === "Deluxe"
+                          ? "bg-[#eaf1e7] border-emerald-600 shadow-sm"
+                          : "bg-white/70 border-stone-200 hover:border-emerald-300"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <h3 className="font-serif font-bold text-sm text-[#2d3b2f]">Deluxe</h3>
+                          {selectedPlanToChange === "Deluxe" && (
+                            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">✓</span>
+                          )}
+                        </div>
+                        <p className="text-lg font-serif font-bold text-emerald-800">
+                          {session?.subscriber?.destination === "International" ? "$44.99" : "₹2,499"}
+                          <span className="text-xs font-normal text-stone-500"> / month</span>
+                        </p>
+                        <ul className="text-[11px] text-[#4a554a] mt-2 space-y-1 font-sans">
+                          <li>• Everything in Standard</li>
+                          <li>• Illustrated map art print</li>
+                          <li>• Seasonal washi tape & artifact</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setChangePlanModalOpen(false)}
+                      className="w-1/3 py-3 px-4 border border-stone-300 rounded-xl text-stone-600 font-serif font-medium text-xs hover:bg-stone-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updatingPlan}
+                      onClick={() => handleChangePlan(selectedPlanToChange)}
+                      className="w-2/3 py-3 px-4 bg-[#a8c1a6] hover:bg-[#97b395] disabled:bg-[#d1ddd0] disabled:cursor-not-allowed text-[#2b3a2f] font-serif font-bold text-xs rounded-xl shadow-xs transition-all border border-[#96af94] flex items-center justify-center gap-2"
+                    >
+                      {updatingPlan ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Updating Ledger...</span>
+                        </>
+                      ) : (
+                        <span>Confirm Switch to {selectedPlanToChange}</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Cancel Subscription Modal */}
+        <AnimatePresence>
+          {cancelModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="bg-[#fbf9f4] w-full max-w-md rounded-2xl shadow-xl overflow-hidden relative border border-rose-200"
+              >
+                <div className="absolute inset-2 border-[1.5px] border-rose-100 rounded-xl pointer-events-none" />
+                
+                <div className="p-8 relative z-10 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-100 uppercase tracking-widest">
+                        ⚠️ Subscription Cancellation
+                      </span>
+                      <h2 className="text-2xl font-serif font-bold text-[#3d4c41] mt-2 tracking-tight">
+                        Cancel Your Passage?
+                      </h2>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setCancelModalOpen(false)}
+                      className="text-stone-400 hover:text-stone-700 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    We will miss you on the meadow path. Before you depart, here is what will happen:
+                  </p>
+
+                  <div className="bg-rose-50/60 p-4 rounded-xl border border-rose-200/60 space-y-2 text-xs text-stone-700">
+                    <p>
+                      <strong>• Active Paid Month:</strong> If you have already paid for the current monthly cycle, your passage <strong>remains active</strong> until your billing deadline ({session?.subscriber?.payment_deadline || "the end of the cycle"}), and your parcels will still be dispatched.
+                    </p>
+                    <p>
+                      <strong>• No Renewal:</strong> You will not be charged when the next monthly cycle begins.
+                    </p>
+                    <p>
+                      <strong>• Re-join Anytime:</strong> Your account ledger is safely kept. You can re-subscribe anytime from this dashboard.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setCancelModalOpen(false)}
+                      className="w-1/2 py-3 px-4 border border-stone-300 rounded-xl text-stone-700 font-serif font-medium text-xs hover:bg-stone-100 transition-colors"
+                    >
+                      Keep Subscription
+                    </button>
+                    <button
+                      type="button"
+                      disabled={cancellingSub}
+                      onClick={handleCancelSubscription}
+                      className="w-1/2 py-3 px-4 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 disabled:cursor-not-allowed text-white font-serif font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
+                    >
+                      {cancellingSub ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Cancelling...</span>
+                        </>
+                      ) : (
+                        <span>Confirm Cancellation</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Edit Address Modal */}
+        <AnimatePresence>
+          {editAddressModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="bg-[#fbf9f4] w-full max-w-md rounded-2xl shadow-xl overflow-hidden relative border border-[#e7d8b5]"
+              >
+                <div className="absolute inset-2 border-[1.5px] border-[#dcd3b9] rounded-xl pointer-events-none" />
+                
+                <div className="p-8 relative z-10 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-widest">
+                        📮 Delivery Destination
+                      </span>
+                      <h2 className="text-2xl font-serif font-bold text-[#3d4c41] mt-2 tracking-tight">
+                        Update Shipping Address
+                      </h2>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setEditAddressModalOpen(false)}
+                      className="text-stone-400 hover:text-stone-700 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-ghibli-sage leading-relaxed">
+                    Provide the complete mailing address where your wax-sealed envelopes, postcards, and regional artifacts should be dispatched.
+                  </p>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-[#4a554a] uppercase tracking-wide block">
+                      Physical Shipping Address <span className="text-rose-600">*</span>
+                    </label>
+                    <textarea
+                      required
+                      rows={4}
+                      placeholder="Full name, street address, apartment/suite, city, state/province, postal code, country..."
+                      value={editAddressInput}
+                      onChange={(e) => setEditAddressInput(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-ghibli-green bg-white text-xs focus:ring-1 focus:ring-ghibli-green focus:outline-none placeholder-stone-400 font-sans"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditAddressModalOpen(false)}
+                      className="w-1/3 py-3 px-4 border border-stone-300 rounded-xl text-stone-600 font-serif font-medium text-xs hover:bg-stone-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleUpdateAddress}
+                      className="w-2/3 py-3 px-4 bg-[#a8c1a6] hover:bg-[#97b395] text-[#2b3a2f] font-serif font-bold text-xs rounded-xl shadow-xs transition-all border border-[#96af94] flex items-center justify-center gap-2"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      <span>Save Address</span>
+                    </button>
+                  </div>
+                </div>
               </motion.div>
             </motion.div>
           )}

@@ -62,8 +62,11 @@ function upsertSubscriber(email: string, patch: Partial<Subscriber>): Subscriber
     email,
     shipping_address: '',
     subscription_status: 'Inactive',
-    plan_tier: 'India' as PlanTier,
+    plan_tier: 'Standard (India)' as PlanTier,
+    destination: 'India',
+    cancellation_reason: '',
     createdAt: new Date().toISOString(),
+    payment_deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
   };
   const sub: Subscriber = Object.assign(base, state.subscribers[email], patch);
   state.subscribers[email] = sub;
@@ -171,6 +174,35 @@ async function handle(method: string, path: string, query: URLSearchParams, body
       const sub = upsertSubscriber(s.email, { shipping_address: String(body.shipping_address) });
       saveState();
       return json({ success: true, subscriber: sub });
+    }
+
+    case 'POST /api/subscriber/change-plan': {
+      const s = currentSession();
+      if (!s) return json({ success: false, error: 'Unauthorized' }, 401);
+      if (!body.plan_tier) return json({ success: false, error: 'Plan tier is required' }, 400);
+      const sub = upsertSubscriber(s.email, { plan_tier: String(body.plan_tier) });
+      saveState();
+      return json({ success: true, subscriber: sub });
+    }
+
+    case 'POST /api/subscriber/cancel': {
+      const s = currentSession();
+      if (!s) return json({ success: false, error: 'Unauthorized' }, 401);
+      const sub = upsertSubscriber(s.email, { 
+        subscription_status: 'Cancelled',
+        cancellation_reason: String(body.reason || 'Cancelled by subscriber')
+      });
+      saveState();
+      return json({ success: true, subscriber: sub });
+    }
+
+    case 'POST /api/subscriber/pause': {
+      const s = currentSession();
+      if (!s) return json({ success: false, error: 'Unauthorized' }, 401);
+      const newStatus = s.subscriber?.subscription_status === 'Paused' ? 'Active' : 'Paused';
+      const sub = upsertSubscriber(s.email, { subscription_status: newStatus });
+      saveState();
+      return json({ success: true, subscriber: sub, newStatus });
     }
 
     // The admin ledger is not part of the public preview: always empty.
