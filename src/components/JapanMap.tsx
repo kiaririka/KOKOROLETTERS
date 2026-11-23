@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   MapPin, Lock, Unlock, Clock, Truck, Sparkles, Archive, 
-  ChevronLeft, ChevronRight, X, Maximize2, Compass
+  ChevronLeft, ChevronRight, Compass
 } from "lucide-react";
-import { REGIONS_METADATA, LORE_DATA, getRegionMonthStatus, getMonthName, getCurrentMonthNumber } from "../data/lore.ts";
+import { REGIONS_METADATA, getRegionMonthStatus, getMonthName, getCurrentMonthNumber } from "../data/lore.ts";
 import japanMapImg from "../assets/japan_parchment_map.jpg";
 
 interface JapanMapProps {
@@ -20,21 +20,6 @@ interface JapanMapProps {
   onSelectRegion: (id: string) => void;
   regionsList: Array<{ region_id: string; region_name: string }>;
 }
-
-const REGION_KANJI: Record<string, string> = {
-  hokkaido: "北海道",
-  tohoku: "東北",
-  shinshu: "信州",
-  kanto: "関東",
-  chubu: "中部",
-  iseshima: "伊勢志摩",
-  kansai: "関西",
-  chugoku: "中国",
-  seto: "瀬戸内",
-  shikoku: "四国",
-  kyushu: "九州",
-  okinawa: "沖縄",
-};
 
 // Accurate geographic pin coordinates (x%, y%) aligned with the hand-painted 16:9 Japanese map
 const REGIONS_MAP_PINS = [
@@ -63,26 +48,58 @@ export default function JapanMap({
   const currentCalMonth = getCurrentMonthNumber();
   const [trackerIndex, setTrackerIndex] = useState(() => Math.max(0, currentCalMonth - 1));
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
-  const [enlargedImageRegion, setEnlargedImageRegion] = useState<string | null>(null);
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const currentMonthRegionId = REGIONS_METADATA.find(m => m.month === currentCalMonth)?.region_id || "kyushu";
-  const displayRegionId = hoveredRegion || activeRegionId || currentMonthRegionId;
-  const displayRegionMeta = REGIONS_METADATA.find(m => m.region_id === displayRegionId);
-  const displayRegionLore = LORE_DATA[displayRegionId];
-  const displayRegionMonthStatus = displayRegionMeta ? getRegionMonthStatus(displayRegionMeta.month) : "past";
-  const displayRegionMonthName = displayRegionMeta ? getMonthName(displayRegionMeta.month) : "";
-  const isDisplayRegionUnlocked = (unlockedRegions || []).includes(displayRegionId);
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
+  }, []);
+
+  const handleMouseEnterPin = (id: string) => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setHoveredRegion(id);
+  };
+
+  const handleMouseLeavePin = () => {
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    closeTimeoutRef.current = setTimeout(() => {
+      setHoveredRegion(null);
+    }, 350);
+  };
+
+  const handleMouseEnterTooltip = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
+
+  const handleMouseLeaveTooltip = () => {
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    closeTimeoutRef.current = setTimeout(() => {
+      setHoveredRegion(null);
+    }, 350);
+  };
+
+  // Active hovered pin object
+  const activeHoveredPin = hoveredRegion 
+    ? REGIONS_MAP_PINS.find(p => p.id === hoveredRegion)
+    : null;
 
   return (
-    <div id="interactive-japan-map" className="relative bg-[#fbf9f4] p-5 sm:p-6 rounded-3xl border border-stone-300 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div id="interactive-japan-map" className="w-full space-y-4">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-stone-200/80 pb-3">
         <div>
-          <h3 className="text-lg font-bold font-serif text-stone-800 tracking-tight flex items-center gap-2">
+          <h3 className="text-xl font-bold font-serif text-stone-800 tracking-tight flex items-center gap-2">
             <Compass className="w-5 h-5 text-amber-800" />
             <span>Interactive Map of Japan</span>
           </h3>
-          <p className="text-xs text-stone-500 font-serif">Select a sacred region to inspect travel letters and lore</p>
+          <p className="text-xs text-stone-500 font-serif">Hover over any region pin to preview travel letters and lore</p>
         </div>
         <div className="flex items-center gap-3 text-xs font-mono">
           <span className="flex items-center gap-1.5 text-stone-500 bg-stone-100 px-2.5 py-1 rounded-full border border-stone-200">
@@ -94,119 +111,19 @@ export default function JapanMap({
         </div>
       </div>
 
-      {/* Docked Region Inspector Card (Stable, non-glitchy, rock solid) */}
-      <div className="mb-4 bg-white border border-stone-200 rounded-2xl p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* Left: Thumbnail & Lore Preview */}
-        <div className="flex items-center gap-3.5 w-full sm:w-auto min-w-0">
-          <div 
-            onClick={() => setEnlargedImageRegion(displayRegionId)}
-            className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-xl overflow-hidden shadow-xs cursor-pointer group shrink-0 border border-stone-200 bg-stone-100"
-            title="Click to view full-resolution photography & lore"
-          >
-            {displayRegionLore?.assets_url && (
-              <img
-                src={displayRegionLore.assets_url}
-                alt={displayRegionMeta?.region_name || "Japan"}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                loading="lazy"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
-            <div className="absolute bottom-1 right-1 bg-black/60 text-white p-1 rounded-md text-[9px]">
-              <Maximize2 className="w-2.5 h-2.5" />
-            </div>
-            {/* Hanko Stamp Pill */}
-            <span className="absolute top-1 left-1 bg-white/95 text-[#991b1b] text-[8px] font-serif font-bold px-1.5 py-0.5 rounded shadow-2xs">
-              {REGION_KANJI[displayRegionId] || "日本"}
-            </span>
-          </div>
-
-          <div className="space-y-1 min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500">
-                Month {displayRegionMeta?.month}: {displayRegionMonthName}
-              </span>
-              <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full border ${
-                isDisplayRegionUnlocked
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200 font-bold"
-                  : displayRegionMonthStatus === "current"
-                  ? "bg-amber-50 text-amber-900 border-amber-300 font-bold"
-                  : displayRegionMonthStatus === "past"
-                  ? "bg-stone-100 text-stone-600 border-stone-200"
-                  : "bg-blue-50 text-blue-700 border-blue-200"
-              }`}>
-                {isDisplayRegionUnlocked 
-                  ? "Unlocked" 
-                  : displayRegionMonthStatus === "current" 
-                  ? "🌟 Active Monthly Dispatch" 
-                  : displayRegionMonthStatus === "past" 
-                  ? "Past Archive" 
-                  : "Upcoming"}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <h4 className="font-serif font-bold text-stone-900 text-lg tracking-tight truncate">
-                {displayRegionMeta?.region_name}
-              </h4>
-              <span className="text-xs font-serif text-stone-500 font-semibold">
-                {REGION_KANJI[displayRegionId]}
-              </span>
-            </div>
-            <p className="text-[11px] text-stone-600 line-clamp-1 italic font-serif">
-              {displayRegionLore?.lore_content?.split("\n\n")?.[1] || "A slow-living journey celebrating the spirit world of Japan."}
-            </p>
-          </div>
-        </div>
-
-        {/* Right: Direct Action */}
-        <div className="shrink-0 w-full sm:w-auto flex justify-end">
-          <button
-            onClick={() => onSelectRegion(displayRegionId)}
-            className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5 ${
-              isDisplayRegionUnlocked
-                ? "bg-emerald-700 hover:bg-emerald-800 text-white"
-                : displayRegionMonthStatus === "current"
-                ? "bg-amber-600 hover:bg-amber-700 text-white"
-                : "bg-stone-800 hover:bg-stone-900 text-white"
-            }`}
-          >
-            {isDisplayRegionUnlocked ? (
-              <>
-                <Unlock className="w-3.5 h-3.5" />
-                <span>Open in Journal</span>
-              </>
-            ) : displayRegionMonthStatus === "current" ? (
-              <>
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{isSubscriber ? "Stamp Journal" : "Subscribe to Unlock →"}</span>
-              </>
-            ) : displayRegionMonthStatus === "past" ? (
-              <>
-                <Archive className="w-3.5 h-3.5" />
-                <span>Inspect Archive</span>
-              </>
-            ) : (
-              <>
-                <Lock className="w-3.5 h-3.5" />
-                <span>Locked • {displayRegionMonthName}</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* The Authentic Hand-Painted Japanese Parchment Map */}
-      <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden border border-stone-300 shadow-md bg-[#f6f1e3]">
+      {/* The Authentic Hand-Painted Japanese Map Container (Full Width, Zero Card Nesting) */}
+      <div className="relative aspect-[16/9] w-full rounded-2xl overflow-visible border border-stone-300 shadow-sm bg-[#f6f1e3]">
         <img
           src={japanMapImg}
           alt="Hand-Painted Antique Map of Japan"
-          className="w-full h-full object-cover select-none pointer-events-none"
+          className="w-full h-full object-cover select-none pointer-events-none rounded-2xl"
         />
 
-        {/* 12 Interactive Region Pins (Smooth, zero-glitch, absolutely stable) */}
+        {/* 12 Interactive Region Pins */}
         {REGIONS_MAP_PINS.map((pin) => {
           const isUnlocked = (unlockedRegions || []).includes(pin.id);
-          const isActive = (activeRegionId === pin.id) || (displayRegionId === pin.id);
+          const isActive = activeRegionId === pin.id;
+          const isHovered = hoveredRegion === pin.id;
           const meta = REGIONS_METADATA.find(m => m.region_id === pin.id);
           const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
           const isCurrent = monthStatus === "current";
@@ -220,27 +137,27 @@ export default function JapanMap({
             >
               <button
                 onClick={() => onSelectRegion(pin.id)}
-                onMouseEnter={() => setHoveredRegion(pin.id)}
-                onMouseLeave={() => setHoveredRegion(null)}
-                className={`group relative flex flex-col items-center cursor-pointer transition-all duration-200 focus:outline-none ${
-                  isActive ? "scale-115 z-30" : "scale-100 hover:scale-110"
+                onMouseEnter={() => handleMouseEnterPin(pin.id)}
+                onMouseLeave={handleMouseLeavePin}
+                className={`group relative flex flex-col items-center cursor-pointer transition-transform duration-200 focus:outline-none ${
+                  isHovered || isActive ? "scale-125 z-30" : "scale-100 hover:scale-115"
                 }`}
                 aria-label={`Select ${pin.name}`}
               >
-                {/* Active Pulsing Aura */}
-                {isActive && (
-                  <span className={`absolute -inset-2 rounded-full animate-ping opacity-60 ${
-                    isUnlocked ? "bg-emerald-400" : isCurrent ? "bg-amber-400" : "bg-stone-300"
+                {/* Active/Current Pulsing Aura */}
+                {(isActive || (isCurrent && !hoveredRegion)) && (
+                  <span className={`absolute -inset-1.5 rounded-full animate-ping opacity-60 ${
+                    isUnlocked ? "bg-emerald-400" : isCurrent ? "bg-amber-400" : "bg-stone-400"
                   }`} />
                 )}
 
-                {/* Pin Badge with Kanji */}
+                {/* Pin Badge */}
                 <div
                   className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-serif font-bold text-xs shadow-md transition-all ${
                     isUnlocked
                       ? "bg-emerald-700 text-white ring-2 ring-emerald-300"
                       : isCurrent
-                      ? "bg-amber-500 text-stone-900 ring-2 ring-amber-300 shadow-amber-500/40"
+                      ? "bg-amber-500 text-stone-900 ring-2 ring-amber-300 shadow-amber-500/50"
                       : isPast
                       ? "bg-[#ecdcc4] text-stone-800 border border-stone-400 ring-1 ring-stone-300"
                       : "bg-[#e5d8c3]/90 text-stone-600 border border-stone-300"
@@ -248,32 +165,160 @@ export default function JapanMap({
                 >
                   <span>{pin.shortKanji}</span>
                 </div>
-
-                {/* Subtitle Label with Region Name */}
-                <div className={`mt-1 px-1.5 py-0.5 rounded-md text-[9px] font-serif font-bold whitespace-nowrap shadow-xs transition-all ${
-                  isActive
-                    ? "bg-stone-900 text-white"
-                    : "bg-white/90 text-stone-800 border border-stone-300 group-hover:bg-stone-900 group-hover:text-white"
-                }`}>
-                  {pin.name}
-                </div>
               </button>
             </div>
           );
         })}
 
-        {/* Map Legend Overlay in bottom-right corner */}
-        <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-stone-300 text-[10px] font-mono text-stone-700 shadow-xs flex items-center gap-1.5 z-20">
-          <MapPin className="w-3 h-3 text-amber-700" />
-          <span>Click any pin to inspect</span>
-        </div>
+        {/* Classic Hover Tooltip Popup Card */}
+        <AnimatePresence>
+          {activeHoveredPin && (() => {
+            const isUnlocked = (unlockedRegions || []).includes(activeHoveredPin.id);
+            const meta = REGIONS_METADATA.find(m => m.region_id === activeHoveredPin.id);
+            const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
+            const monthName = meta ? getMonthName(meta.month) : "";
+            const isPast = monthStatus === "past";
+            const isCurrent = monthStatus === "current";
+            const isFuture = monthStatus === "future";
+
+            // Prevent tooltip from clipping the top boundary if pin is in the upper area
+            const isTopArea = activeHoveredPin.y < 35;
+
+            return (
+              <motion.div
+                key={`html-tooltip-${activeHoveredPin.id}`}
+                initial={{ opacity: 0, y: isTopArea ? -6 : 8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: isTopArea ? -6 : 8, scale: 0.95 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="absolute z-50 flex flex-col items-center pointer-events-none"
+                style={{ 
+                  left: `${activeHoveredPin.x}%`,
+                  top: `${activeHoveredPin.y}%`,
+                  transform: isTopArea 
+                    ? "translate(-50%, 20px)" 
+                    : "translate(-50%, -100%)",
+                  marginTop: isTopArea ? "0px" : "-12px"
+                }}
+              >
+                {/* Pointer Triangle (if above pin, points down) */}
+                {!isTopArea && (
+                  <div className="order-2 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-transparent border-t-[#fcfaf2] drop-shadow-xs relative -top-[1px]"></div>
+                )}
+
+                {/* Tooltip Card Body */}
+                <div 
+                  onMouseEnter={handleMouseEnterTooltip}
+                  onMouseLeave={handleMouseLeaveTooltip}
+                  className="order-1 bg-[#fcfaf2] border border-[#527e69]/40 shadow-xl rounded-2xl p-3.5 max-w-[230px] w-[220px] text-center flex flex-col items-center relative overflow-hidden pointer-events-auto"
+                >
+                  {/* Header with Inline Lantern and Title */}
+                  <div className="flex items-center justify-center gap-1.5 w-full mb-1">
+                    <div className="w-5 h-5 shrink-0">
+                      <svg viewBox="0 0 20 20" className="w-full h-full drop-shadow-xs">
+                        <g>
+                          <rect x="6" y="0" width="8" height="2" fill="#451a03" />
+                          <rect x="4" y="2" width="12" height="2" fill="#78350f" />
+                          <rect x="4" y="4" width="12" height="12" fill={isFuture ? "#9ca3af" : isPast ? "#78716c" : "#f59e0b"} className={isCurrent ? "animate-pulse" : ""} />
+                          <rect x="6" y="6" width="8" height="8" fill={isFuture ? "#d1d5db" : isPast ? "#a8a29e" : "#fcd34d"} />
+                          <rect x="8" y="8" width="4" height="4" fill={isFuture ? "#f3f4f6" : isPast ? "#e7e5e4" : "#fffbeb"} />
+                          <rect x="4" y="16" width="12" height="2" fill="#78350f" />
+                          <rect x="6" y="18" width="8" height="2" fill="#451a03" />
+                        </g>
+                      </svg>
+                    </div>
+
+                    <h4 className="font-serif font-bold text-[#2d4438] text-sm leading-tight">
+                      {activeHoveredPin.name}
+                    </h4>
+                  </div>
+
+                  {/* Subtext */}
+                  <p className="text-[10px] text-stone-500 font-medium leading-tight mb-2 w-full text-center">
+                    {isUnlocked 
+                      ? "Explore travel letters & lore" 
+                      : isCurrent
+                      ? `${monthName} Dispatch • Available Now`
+                      : isPast
+                      ? `${monthName} Dispatch • Past Archive`
+                      : `Scheduled for ${monthName}`}
+                  </p>
+
+                  {/* Shipping logistics status banner */}
+                  {isCurrent && (
+                    <div className="mt-1 mb-2 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[9px] font-bold font-mono animate-pulse flex items-center justify-center gap-1 w-full">
+                      <Truck className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                      <span className="truncate">{monthName}: Active Monthly Dispatch</span>
+                    </div>
+                  )}
+                  {isPast && (
+                    <div className="mt-1 mb-2 px-2.5 py-1 rounded-lg bg-stone-100 border border-stone-200 text-stone-700 text-[9px] font-bold font-mono flex items-center justify-center gap-1 w-full">
+                      <Archive className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                      <span className="truncate">{monthName}: Past Archive (Kit order)</span>
+                    </div>
+                  )}
+                  {isFuture && (
+                    <div className="mt-1 mb-2 px-2.5 py-1 rounded-lg bg-stone-50 border border-stone-200 text-stone-500 text-[9px] font-bold font-mono flex items-center justify-center gap-1 w-full">
+                      <Clock className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                      <span className="truncate">{monthName}: Coming Soon</span>
+                    </div>
+                  )}
+
+                  {/* State-Awareness Banner */}
+                  <div className={`text-[9px] font-mono font-bold tracking-tight py-1 px-1.5 rounded-md mb-2.5 w-full text-center leading-normal ${
+                    isUnlocked
+                      ? "text-emerald-800 bg-emerald-50"
+                      : isCurrent
+                      ? "text-amber-800 bg-amber-50"
+                      : "text-stone-600 bg-stone-100"
+                  }`}>
+                    {isUnlocked 
+                      ? `${activeHoveredPin.name} | Unlocked` 
+                      : isCurrent 
+                      ? `${activeHoveredPin.name} | Subscribe to Unlock` 
+                      : isPast
+                      ? `${activeHoveredPin.name} | Archived Dispatch (Locked)`
+                      : `${activeHoveredPin.name} | Coming Soon (Locked)`}
+                  </div>
+
+                  {/* Action Button */}
+                  <button 
+                    onClick={() => onSelectRegion(activeHoveredPin.id)}
+                    className={`text-[10px] font-bold py-1.5 px-4 rounded-full w-full shadow-xs transition-all whitespace-nowrap cursor-pointer ${
+                      isUnlocked
+                        ? "bg-[#527e69] hover:bg-[#3d604f] active:scale-95 text-white"
+                        : isCurrent
+                        ? "bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-900 font-bold"
+                        : isPast
+                        ? "bg-stone-300 hover:bg-stone-400 text-stone-800"
+                        : "bg-stone-200 hover:bg-stone-300 text-stone-600"
+                    }`}
+                  >
+                    {isUnlocked 
+                      ? "View Region" 
+                      : isCurrent 
+                      ? (isSubscriber ? "Stamp Journal" : "Subscribe to Unlock →") 
+                      : isPast
+                      ? "Archived Dispatch"
+                      : "Coming Soon"}
+                  </button>
+                </div>
+
+                {/* Pointer Triangle (if below pin, points up) */}
+                {isTopArea && (
+                  <div className="order-0 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[8px] border-transparent border-b-[#fcfaf2] drop-shadow-xs relative -bottom-[1px]"></div>
+                )}
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
       </div>
 
-      {/* Grid list of regions for easy keyboard accessibility */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-4">
+      {/* Grid of Regions Covering the Full Map Area (Generous spacing, no cutoff text) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 pt-2">
         {regionsList.map((r) => {
           const isUnlocked = (unlockedRegions || []).includes(r.region_id);
-          const isActive = (activeRegionId === r.region_id) || (displayRegionId === r.region_id);
+          const isActive = activeRegionId === r.region_id;
           const meta = REGIONS_METADATA.find(m => m.region_id === r.region_id);
           const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
           const monthName = meta ? getMonthName(meta.month) : "";
@@ -282,10 +327,10 @@ export default function JapanMap({
           const isPast = monthStatus === "past";
 
           const subLabel = isCurrent 
-            ? `${monthName.slice(0, 3)} • Current` 
+            ? `${monthName.slice(0, 3)} • Active Dispatch` 
             : isPast 
-            ? `${monthName.slice(0, 3)} • Archive` 
-            : `${monthName.slice(0, 3)} • Soon`;
+            ? `${monthName.slice(0, 3)} • Past Archive` 
+            : `${monthName.slice(0, 3)} • Upcoming`;
 
           const isJustUnlocked = justUnlockedRegionId === r.region_id;
 
@@ -293,43 +338,47 @@ export default function JapanMap({
             <button
               key={r.region_id}
               onClick={() => onSelectRegion(r.region_id)}
-              onMouseEnter={() => setHoveredRegion(r.region_id)}
-              onMouseLeave={() => setHoveredRegion(null)}
-              className={`flex items-center gap-1.5 p-2 rounded-xl border text-[11px] font-medium transition-all text-left cursor-pointer min-w-0 overflow-hidden ${
+              onMouseEnter={() => handleMouseEnterPin(r.region_id)}
+              onMouseLeave={handleMouseLeavePin}
+              className={`flex items-start gap-2.5 p-3 rounded-2xl border text-left transition-all cursor-pointer shadow-2xs ${
                 isJustUnlocked
-                  ? "bg-emerald-50 border-emerald-400 text-emerald-900 ring-2 ring-emerald-300/60 shadow-sm"
+                  ? "bg-emerald-50 border-emerald-400 text-emerald-950 ring-2 ring-emerald-300 shadow-xs"
                   : isActive
                   ? isUnlocked
-                    ? "bg-emerald-50 border-emerald-300 text-emerald-900 shadow-xs ring-1 ring-emerald-300"
+                    ? "bg-emerald-50 border-emerald-300 text-emerald-950 ring-1 ring-emerald-300 shadow-xs"
                     : isCurrent
                     ? "bg-amber-100 border-amber-300 text-amber-950 ring-1 ring-amber-300 shadow-xs"
-                    : "bg-stone-200 border-stone-300 text-stone-800 shadow-xs ring-1 ring-stone-300"
+                    : "bg-stone-200 border-stone-400 text-stone-900 shadow-xs ring-1 ring-stone-300"
                   : isUnlocked
-                  ? "bg-white border-emerald-100 hover:border-emerald-200 text-emerald-800"
+                  ? "bg-white border-emerald-100 hover:border-emerald-200 text-emerald-900 hover:bg-emerald-50/50"
                   : isCurrent
-                  ? "bg-amber-50/80 border-amber-200 text-amber-900 hover:border-amber-300"
-                  : "bg-stone-50 border-stone-200/60 text-stone-500 hover:border-stone-300 hover:text-stone-700"
+                  ? "bg-amber-50/90 border-amber-200 text-amber-950 hover:border-amber-300 hover:bg-amber-100/60"
+                  : "bg-white border-stone-200 text-stone-700 hover:border-stone-300 hover:bg-stone-50"
               }`}
             >
-              {isUnlocked ? (
-                <Unlock className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-700' : 'text-emerald-600'}`} />
-              ) : isCurrent ? (
-                <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-600" />
-              ) : isPast ? (
-                <Archive className="w-3.5 h-3.5 shrink-0 text-stone-400" />
-              ) : (
-                <Clock className="w-3.5 h-3.5 shrink-0 text-stone-300" />
-              )}
-              <div className="min-w-0 flex-1 overflow-hidden leading-tight">
-                <span className="truncate block font-semibold text-stone-800">{r.region_name}</span>
-                <span className="text-[9px] block opacity-80 text-stone-500 font-mono truncate">{subLabel}</span>
+              <div className="pt-0.5 shrink-0">
+                {isUnlocked ? (
+                  <Unlock className={`w-3.5 h-3.5 ${isActive ? 'text-emerald-700' : 'text-emerald-600'}`} />
+                ) : isCurrent ? (
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                ) : isPast ? (
+                  <Archive className="w-3.5 h-3.5 text-stone-400" />
+                ) : (
+                  <Clock className="w-3.5 h-3.5 text-stone-400" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 leading-snug">
+                <span className="block font-serif font-bold text-xs text-stone-900">{r.region_name}</span>
+                <span className="text-[10px] font-mono text-stone-500 block mt-0.5 whitespace-nowrap">
+                  {subLabel}
+                </span>
               </div>
             </button>
           );
         })}
       </div>
 
-      {/* Live Mail Dispatch Tracker Carousel */}
+      {/* Live Mail Dispatch Tracker Carousel (Matching Full Width) */}
       {(() => {
         const selectedMeta = REGIONS_METADATA[trackerIndex] || REGIONS_METADATA[0];
         const monthNum = selectedMeta.month;
@@ -340,7 +389,7 @@ export default function JapanMap({
         const isSelectedActive = activeRegionId === selectedMeta.region_id;
 
         return (
-          <div className="mt-6 border-t border-stone-200 pt-5 space-y-3">
+          <div className="mt-8 border-t border-stone-200/80 pt-5 space-y-3">
             {/* Header with Navigation Controls */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -477,95 +526,6 @@ export default function JapanMap({
           </div>
         );
       })()}
-
-      {/* Enlarged High-Resolution Inspection Modal */}
-      <AnimatePresence>
-        {enlargedImageRegion && (() => {
-          const meta = REGIONS_METADATA.find(m => m.region_id === enlargedImageRegion);
-          const lore = LORE_DATA[enlargedImageRegion];
-          const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
-          const isUnlocked = (unlockedRegions || []).includes(enlargedImageRegion);
-
-          return (
-            <div 
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
-              onClick={() => setEnlargedImageRegion(null)}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                transition={{ duration: 0.2 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-[#fcfaf2] rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl border border-stone-300 relative text-left"
-              >
-                <button
-                  onClick={() => setEnlargedImageRegion(null)}
-                  className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors cursor-pointer"
-                  aria-label="Close Preview"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-
-                <div className="relative aspect-video w-full overflow-hidden bg-stone-900">
-                  <img
-                    src={lore?.assets_url}
-                    alt={meta?.region_name || "Regional Landscape"}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  
-                  {/* Floating Postal Stamp Watermark */}
-                  <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-xs text-[#991b1b] border border-[#991b1b]/30 px-2.5 py-1 rounded-xl shadow-xs flex items-center gap-1.5 font-serif">
-                    <span className="font-bold text-sm">心</span>
-                    <span className="text-[10px] font-mono tracking-wider font-semibold">
-                      {REGION_KANJI[enlargedImageRegion] || "日本"} • MONTH {meta?.month}
-                    </span>
-                  </div>
-
-                  <div className="absolute bottom-4 left-4 right-4 text-white">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-amber-300">
-                      Authentic Japanese Landscape
-                    </span>
-                    <h3 className="text-2xl font-serif font-bold text-white tracking-tight mt-0.5">
-                      {meta?.region_name} ({REGION_KANJI[enlargedImageRegion]})
-                    </h3>
-                  </div>
-                </div>
-
-                <div className="p-6 space-y-4">
-                  <p className="text-xs text-stone-700 leading-relaxed font-serif whitespace-pre-line max-h-52 overflow-y-auto pr-1">
-                    {lore?.lore_content}
-                  </p>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-stone-200">
-                    <div className="text-[11px] font-mono text-stone-500">
-                      Status: <strong className="text-stone-800">{isUnlocked ? "Unlocked" : monthStatus === "current" ? "Active Monthly Dispatch" : monthStatus === "past" ? "Archived" : "Upcoming"}</strong>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          onSelectRegion(enlargedImageRegion);
-                          setEnlargedImageRegion(null);
-                        }}
-                        className="px-4 py-2 bg-stone-800 hover:bg-stone-900 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs"
-                      >
-                        Inspect on Map
-                      </button>
-                      <button
-                        onClick={() => setEnlargedImageRegion(null)}
-                        className="px-4 py-2 border border-stone-300 hover:bg-stone-100 text-stone-700 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          );
-        })()}
-      </AnimatePresence>
     </div>
   );
 }

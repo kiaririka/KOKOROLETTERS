@@ -791,7 +791,7 @@ export default function App() {
                     Each month covers one region inspired by a beloved Ghibli film. Click a region on the map to explore.
                   </p>
                 </div>
-                <div className="max-w-md mx-auto">
+                <div className="max-w-4xl mx-auto w-full">
                   <JapanMap
                     isSubscriber={isSubscriberActive}
                     unlockedRegions={isSubscriberActive ? (session?.unlocked_regions || []) : []}
