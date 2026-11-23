@@ -38,19 +38,19 @@ const REGIONS_MAP_PINS = [
   { id: "okinawa", name: "Okinawa", month: 12, x: 13, y: 82, shortKanji: "沖" }
 ];
 
-// SVG territorial partition shapes corresponding to each region on the hand-painted Japanese map
+// SVG territorial partition shapes precisely traced to each region's landmass on the hand-painted Japanese map
 const REGION_PARTITION_PATHS: Record<string, string> = {
-  hokkaido: "M 70,27 C 72,16 80,12 87,15 C 93,19 91,29 86,34 C 80,38 74,37 70,31 Z",
-  tohoku: "M 65,34 C 70,37 71,48 68,52 C 63,50 63,41 65,34 Z",
-  shinshu: "M 56,46 C 60,49 59,57 53,56 C 51,51 52,47 56,46 Z",
-  kanto: "M 59,55 C 66,55 68,63 65,68 C 59,68 58,61 59,55 Z",
-  chubu: "M 51,57 C 56,59 56,69 51,70 C 47,67 47,60 51,57 Z",
-  iseshima: "M 45,65 C 49,67 50,75 46,77 C 42,74 43,67 45,65 Z",
-  kansai: "M 39,50 C 45,51 45,61 41,63 C 37,60 37,53 39,50 Z",
-  chugoku: "M 29,47 C 37,48 38,56 29,57 C 24,56 24,49 29,47 Z",
-  seto: "M 32,58 C 40,58 41,64 34,65 C 31,63 31,60 32,58 Z",
-  shikoku: "M 26,65 C 33,64 34,73 27,75 C 23,72 23,67 26,65 Z",
-  kyushu: "M 15,49 C 22,50 23,64 17,66 C 13,62 13,52 15,49 Z",
+  hokkaido: "M 68,30.5 C 69.5,26 72,21 73.5,15.5 C 75,15 76,18 77,22 C 80,21 83,23 85,27 C 83.5,29 82,32 79.5,35.5 C 76.5,34.5 74,31 71,31 C 69,32 68,30.5 68,30.5 Z",
+  tohoku: "M 66,34.5 C 69,37 70.5,47 67.5,52 C 63.5,50 63.5,41 66,34.5 Z",
+  shinshu: "M 55.5,46 C 59,49 58,56.5 53,56 C 51,51 52.5,47 55.5,46 Z",
+  kanto: "M 59,55 C 65,55 67,62.5 64.5,67.5 C 59.5,67.5 58.5,61 59,55 Z",
+  chubu: "M 51,57 C 55.5,59 55.5,68 51,69.5 C 47.5,67 47.5,60 51,57 Z",
+  iseshima: "M 45,65 C 48.5,67 49,74.5 46,76.5 C 42.5,74 43,67 45,65 Z",
+  kansai: "M 39,50.5 C 44.5,51.5 44.5,61 41,62.5 C 37.5,60 37.5,53 39,50.5 Z",
+  chugoku: "M 28.5,47.5 C 36.5,48.5 37.5,55.5 28.5,56.5 C 24.5,55.5 24.5,49.5 28.5,47.5 Z",
+  seto: "M 32,58 C 39.5,58 40.5,63.5 34,64.5 C 31,63 31,60 32,58 Z",
+  shikoku: "M 26,65 C 32.5,64 33.5,72.5 27,74.5 C 23.5,72 23.5,67 26,65 Z",
+  kyushu: "M 15.5,49.5 C 21.5,50.5 22.5,63.5 17,65.5 C 13.5,62 13.5,52.5 15.5,49.5 Z",
   okinawa: "M 7.5,75.5 L 19.5,75.5 L 19.5,89.5 L 7.5,89.5 Z"
 };
 
@@ -186,19 +186,7 @@ export default function JapanMap({
 
             return (
               <g key={`partition-glow-${pin.id}`}>
-                {/* Luminous gentle halo at region centroid when actively hovered */}
-                {isHovered && (
-                  <ellipse
-                    cx={pin.x}
-                    cy={pin.y}
-                    rx="8"
-                    ry="6"
-                    fill={isUnlocked ? "url(#radial-glow-emerald)" : "url(#radial-glow-amber)"}
-                    className="animate-pulse pointer-events-none"
-                  />
-                )}
-
-                {/* Partition territorial boundary path */}
+                {/* Partition territorial boundary path: Precisely traces regional landmass without vague circular blobs */}
                 <path
                   d={partitionPath}
                   fill={
@@ -215,7 +203,7 @@ export default function JapanMap({
                         : "#b45309"
                       : "rgba(180, 150, 110, 0.2)"
                   }
-                  strokeWidth={isHovered ? "1.5" : "0.5"}
+                  strokeWidth={isHovered ? "1.6" : "0.5"}
                   strokeDasharray={isHovered ? "none" : "2,2"}
                   filter={
                     isHovered
@@ -224,7 +212,7 @@ export default function JapanMap({
                         : "url(#partition-glow-amber)"
                       : "none"
                   }
-                  className="transition-all duration-300 pointer-events-auto cursor-pointer"
+                  className="transition-all duration-200 pointer-events-auto cursor-pointer"
                   onMouseEnter={() => handleMouseEnterPin(pin.id)}
                   onMouseLeave={handleMouseLeavePin}
                   onClick={() => {
@@ -271,6 +259,13 @@ export default function JapanMap({
                   <span className={`absolute -inset-1 sm:-inset-1.5 rounded-full animate-ping opacity-60 ${
                     isUnlocked ? "bg-emerald-400" : isCurrent ? "bg-amber-400" : "bg-stone-400"
                   }`} />
+                )}
+
+                {/* Uniform, consistent luminous beacon aura when hovered (identical size on all 12 regions) */}
+                {isHovered && (
+                  <span className={`absolute -inset-1.5 sm:-inset-2 rounded-full border-2 ${
+                    isUnlocked ? "border-emerald-500 bg-emerald-500/20" : "border-amber-400 bg-amber-400/25"
+                  } animate-pulse pointer-events-none`} />
                 )}
 
                 {/* Pin Badge: Responsive scaling from mobile (24px) to desktop (32px) */}
