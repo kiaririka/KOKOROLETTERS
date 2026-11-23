@@ -660,7 +660,7 @@ export default function App() {
           <nav className="flex items-center gap-6 text-sm font-medium">
             {[
               { id: "journey", label: "Home" },
-              { id: "subscription", label: "Subscribe" },
+              { id: "subscription", label: "My Subscriptions" },
               { id: "journal", label: "My Journal" },
               ...(isAdmin ? [{ id: "admin", label: "Admin" }] : [])
             ].map(tab => (
@@ -842,7 +842,7 @@ export default function App() {
                 <p>A slow-living monthly mail club celebrating the spirit world of Japan.</p>
                 <div className="flex justify-center gap-6 pt-2 font-medium">
                   <button onClick={() => setActiveTab("journey")} className="hover:text-ghibli-green-dark">Home</button>
-                  <button onClick={() => setActiveTab("subscription")} className="hover:text-ghibli-green-dark">Subscribe</button>
+                  <button onClick={() => setActiveTab("subscription")} className="hover:text-ghibli-green-dark">My Subscriptions</button>
                   <button onClick={() => setActiveTab("journal")} className="hover:text-ghibli-green-dark">My Journal</button>
                   {isAdmin && <button onClick={() => setActiveTab("admin")} className="hover:text-ghibli-green-dark">Admin</button>}
                 </div>
@@ -931,13 +931,6 @@ export default function App() {
                           className="px-4 py-2 border border-ghibli-green text-ghibli-green-dark bg-white rounded-xl text-xs font-semibold hover:bg-ghibli-green-light transition-all cursor-pointer shadow-2xs"
                         >
                           Change Plan
-                        </button>
-                        <button
-                          onClick={handlePauseSubscription}
-                          disabled={pausingSub || isSubscriberCancelled}
-                          className="px-4 py-2 bg-[#eedba5] hover:bg-[#e4cb8f] text-stone-800 rounded-xl text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-2xs"
-                        >
-                          {pausingSub ? "Updating..." : isSubscriberPaused ? "Resume Subscription" : "Pause Subscription"}
                         </button>
                         <button
                           onClick={() => setCancelModalOpen(true)}
@@ -1101,210 +1094,212 @@ export default function App() {
                 </div>
               )}
 
-              {/* Two Tiers Subscription Grid (Standard & Bundle for both Indian / International) */}
-              <div id="passage-tiers-section" className="py-4 space-y-6">
-                <div className="text-center space-y-3">
-                  <span className="text-[10px] font-mono text-ghibli-sage bg-ghibli-green-light px-3 py-1 rounded-full border border-ghibli-green/30 uppercase tracking-widest font-semibold">
-                    Two Sacred Tiers
-                  </span>
-                  <h3 className="text-2xl md:text-3xl font-bold font-serif text-ghibli-green-dark">
-                    Choose Your Passage Tier
-                  </h3>
-                  <p className="text-xs text-ghibli-sage max-w-xl mx-auto leading-relaxed">
-                    Every monthly dispatch is authentically hand-printed and hand-packed. Choose between our regular monthly <strong>Standard</strong> passage or the complete 12-month <strong>Bundle</strong>.
-                  </p>
-
-                  {/* Destination & Currency Toggle */}
-                  <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
-                    <div className="inline-flex items-center p-1.5 bg-white border border-ghibli-green-light rounded-2xl shadow-xs">
-                      <button
-                        onClick={() => setPlanDestination("India")}
-                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                          planDestination === "India"
-                            ? "bg-ghibli-green-dark text-[#eedba5] shadow-xs"
-                            : "text-stone-500 hover:text-stone-800"
-                        }`}
-                      >
-                        <span>🇮🇳 Domestic India</span>
-                        <span className="text-[10px] font-mono opacity-80">(₹ INR)</span>
-                      </button>
-                      <button
-                        onClick={() => setPlanDestination("International")}
-                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                          planDestination === "International"
-                            ? "bg-ghibli-green-dark text-[#eedba5] shadow-xs"
-                            : "text-stone-500 hover:text-stone-800"
-                        }`}
-                      >
-                        <span>🌏 International</span>
-                        <span className="text-[10px] font-mono opacity-80">({INTERNATIONAL_CURRENCIES[selectedCurrency].symbol} {selectedCurrency})</span>
-                      </button>
-                    </div>
-
-                    {/* Local currency selector dropdown for International travelers */}
-                    {planDestination === "International" && (
-                      <div className="inline-flex items-center gap-1.5 bg-white border border-ghibli-green-light px-3 py-2 rounded-2xl shadow-xs text-xs">
-                        <span className="text-[10px] text-ghibli-sage font-mono uppercase font-bold">Currency:</span>
-                        <select
-                          value={selectedCurrency}
-                          onChange={(e) => setSelectedCurrency(e.target.value as SupportedCurrency)}
-                          className="text-xs font-serif font-bold text-ghibli-green-dark bg-transparent focus:outline-none cursor-pointer"
-                        >
-                          {Object.values(INTERNATIONAL_CURRENCIES).map((c) => (
-                            <option key={c.code} value={c.code}>
-                              {c.label} • {c.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                  {/* Standard Tier Card */}
-                  <div className="bg-ghibli-cream border border-ghibli-cream-dark rounded-3xl p-6 flex flex-col justify-between space-y-6 relative vintage-shadow">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-[10px] font-mono uppercase tracking-wider text-ghibli-sage font-bold">Regular Passage</span>
-                          <h4 className="font-serif font-bold text-xl text-ghibli-green-dark mt-0.5">Standard Plan</h4>
-                        </div>
-                        <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                          {planDestination === "India" ? "Domestic Speed-Post" : "Tracked Airmail"}
-                        </span>
-                      </div>
-
-                      <div className="space-y-1">
-                        <span className="text-3xl font-serif font-bold text-ghibli-green-dark block">
-                          {planDestination === "India" 
-                            ? "₹999" 
-                            : INTERNATIONAL_CURRENCIES[selectedCurrency].standardFormatted}
-                          <span className="text-xs font-normal text-ghibli-sage font-sans"> / month</span>
-                        </span>
-                        <p className="text-xs text-ghibli-sage leading-relaxed">
-                          {planDestination === "India" 
-                            ? "Regular monthly subscription. Free domestic speed-post across India." 
-                            : "Regular monthly subscription. Total includes tracked international airmail."}
-                        </p>
-                      </div>
-
-                      <ul className="space-y-2 text-xs text-ghibli-green-dark pt-2 border-t border-ghibli-green-light/40">
-                        <li className="flex items-center gap-2 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
-                          <span>🖼️ Hand-printed Ghibli-Style Art Postcard</span>
-                        </li>
-                        <li className="flex items-center gap-2 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
-                          <span>✨ Character-Inspired Matte Vinyl Sticker</span>
-                        </li>
-                        <li className="flex items-center gap-2 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
-                          <span>🏷️ Collectible Region Map Passport Stamp</span>
-                        </li>
-                        <li className="flex items-center gap-2 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
-                          <span>📖 Hand-sealed Creator's Lore Letter</span>
-                        </li>
-                        <li className="flex items-center gap-2 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
-                          <span>🎁 First-Month Welcome Gift: Physical Japan Map</span>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setDirectCheckoutTier("Standard");
-                        setDirectCheckoutDestination(planDestination);
-                        setDirectCheckoutGateway(planDestination === "India" ? "razorpay" : "paypal");
-                        setDirectCheckoutEmail(session?.email || "");
-                        setDirectCheckoutAddress(session?.subscriber?.shipping_address || "");
-                        setDirectCheckoutModalOpen(true);
-                      }}
-                      className="w-full py-3 bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark font-serif font-bold rounded-2xl text-xs transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <span>Subscribe to Standard ({planDestination === "India" ? "Razorpay" : "PayPal"})</span>
-                    </button>
-                  </div>
-
-                  {/* Bundle Tier Card */}
-                  <div className="bg-gradient-to-b from-[#fdfbf6] to-[#f7f2e4] border-2 border-amber-300/80 rounded-3xl p-6 flex flex-col justify-between space-y-6 relative vintage-shadow">
-                    <span className="absolute -top-3 right-6 bg-gradient-to-r from-amber-600 to-amber-700 text-white text-[9px] font-mono uppercase font-bold px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
-                      <Sparkles className="w-2.5 h-2.5" />
-                      12-Month Full Journey
+              {/* Two Tiers Subscription Grid (Standard & Bundle for both Indian / International) - Hidden if already active subscriber */}
+              {!isSubscriberActive && (
+                <div id="passage-tiers-section" className="py-4 space-y-6">
+                  <div className="text-center space-y-3">
+                    <span className="text-[10px] font-mono text-ghibli-sage bg-ghibli-green-light px-3 py-1 rounded-full border border-ghibli-green/30 uppercase tracking-widest font-semibold">
+                      Two Sacred Tiers
                     </span>
+                    <h3 className="text-2xl md:text-3xl font-bold font-serif text-ghibli-green-dark">
+                      Choose Your Passage Tier
+                    </h3>
+                    <p className="text-xs text-ghibli-sage max-w-xl mx-auto leading-relaxed">
+                      Every monthly dispatch is authentically hand-printed and hand-packed. Choose between our regular monthly <strong>Standard</strong> passage or the complete 12-month <strong>Bundle</strong>.
+                    </p>
 
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-[10px] font-mono uppercase tracking-wider text-amber-800 font-bold">Bulk Passage</span>
-                          <h4 className="font-serif font-bold text-xl text-amber-950 mt-0.5">Bundle Plan</h4>
+                    {/* Destination & Currency Toggle */}
+                    <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+                      <div className="inline-flex items-center p-1.5 bg-white border border-ghibli-green-light rounded-2xl shadow-xs">
+                        <button
+                          onClick={() => setPlanDestination("India")}
+                          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            planDestination === "India"
+                              ? "bg-ghibli-green-dark text-[#eedba5] shadow-xs"
+                              : "text-stone-500 hover:text-stone-800"
+                          }`}
+                        >
+                          <span>🇮🇳 Domestic India</span>
+                          <span className="text-[10px] font-mono opacity-80">(₹ INR)</span>
+                        </button>
+                        <button
+                          onClick={() => setPlanDestination("International")}
+                          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            planDestination === "International"
+                              ? "bg-ghibli-green-dark text-[#eedba5] shadow-xs"
+                              : "text-stone-500 hover:text-stone-800"
+                          }`}
+                        >
+                          <span>🌏 International</span>
+                          <span className="text-[10px] font-mono opacity-80">({INTERNATIONAL_CURRENCIES[selectedCurrency].symbol} {selectedCurrency})</span>
+                        </button>
+                      </div>
+
+                      {/* Local currency selector dropdown for International travelers */}
+                      {planDestination === "International" && (
+                        <div className="inline-flex items-center gap-1.5 bg-white border border-ghibli-green-light px-3 py-2 rounded-2xl shadow-xs text-xs">
+                          <span className="text-[10px] text-ghibli-sage font-mono uppercase font-bold">Currency:</span>
+                          <select
+                            value={selectedCurrency}
+                            onChange={(e) => setSelectedCurrency(e.target.value as SupportedCurrency)}
+                            className="text-xs font-serif font-bold text-ghibli-green-dark bg-transparent focus:outline-none cursor-pointer"
+                          >
+                            {Object.values(INTERNATIONAL_CURRENCIES).map((c) => (
+                              <option key={c.code} value={c.code}>
+                                {c.label} • {c.name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                        <span className="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200">
-                          Yearly Subscription
-                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                    {/* Standard Tier Card */}
+                    <div className="bg-ghibli-cream border border-ghibli-cream-dark rounded-3xl p-6 flex flex-col justify-between space-y-6 relative vintage-shadow">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-ghibli-sage font-bold">Regular Passage</span>
+                            <h4 className="font-serif font-bold text-xl text-ghibli-green-dark mt-0.5">Standard Plan</h4>
+                          </div>
+                          <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                            {planDestination === "India" ? "Domestic Speed-Post" : "Tracked Airmail"}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <span className="text-3xl font-serif font-bold text-ghibli-green-dark block">
+                            {planDestination === "India" 
+                              ? "₹999" 
+                              : INTERNATIONAL_CURRENCIES[selectedCurrency].standardFormatted}
+                            <span className="text-xs font-normal text-ghibli-sage font-sans"> / month</span>
+                          </span>
+                          <p className="text-xs text-ghibli-sage leading-relaxed">
+                            {planDestination === "India" 
+                              ? "Regular monthly subscription. Free domestic speed-post across India." 
+                              : "Regular monthly subscription. Total includes tracked international airmail."}
+                          </p>
+                        </div>
+
+                        <ul className="space-y-2 text-xs text-ghibli-green-dark pt-2 border-t border-ghibli-green-light/40">
+                          <li className="flex items-center gap-2 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
+                            <span>🖼️ Hand-printed Ghibli-Style Art Postcard</span>
+                          </li>
+                          <li className="flex items-center gap-2 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
+                            <span>✨ Character-Inspired Matte Vinyl Sticker</span>
+                          </li>
+                          <li className="flex items-center gap-2 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
+                            <span>🏷️ Collectible Region Map Passport Stamp</span>
+                          </li>
+                          <li className="flex items-center gap-2 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
+                            <span>📖 Hand-sealed Creator's Lore Letter</span>
+                          </li>
+                          <li className="flex items-center gap-2 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
+                            <span>🎁 First-Month Welcome Gift: Physical Japan Map</span>
+                          </li>
+                        </ul>
                       </div>
 
-                      <div className="space-y-1">
-                        <span className="text-3xl font-serif font-bold text-amber-950 block">
-                          {planDestination === "India" 
-                            ? "₹10,000" 
-                            : INTERNATIONAL_CURRENCIES[selectedCurrency].bundleFormatted}
-                          <span className="text-xs font-normal text-amber-800 font-sans"> / year</span>
-                        </span>
-                        <p className="text-xs text-amber-900/80 leading-relaxed">
-                          {planDestination === "India" 
-                            ? "All 12 months in bulk! Yearly subscription — save ₹1,988 compared to monthly." 
-                            : "All 12 months in bulk! Pay for 11 months, get 1 full month + tracked international shipping completely FREE!"}
-                        </p>
-                      </div>
-
-                      <ul className="space-y-2 text-xs text-stone-800 pt-2 border-t border-amber-200/60">
-                        <li className="flex items-center gap-2 font-semibold text-emerald-900">
-                          <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                          <span>Complete 12-Month Japan Passage:</span>
-                        </li>
-                        <li className="flex items-center gap-2 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
-                          <span>📦 All 12 Hand-crafted Monthly Envelopes</span>
-                        </li>
-                        <li className="flex items-center gap-2 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
-                          <span>🖼️ Complete Set of 12 Ghibli Art Postcards</span>
-                        </li>
-                        <li className="flex items-center gap-2 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
-                          <span>✨ All 12 Custom Anime Vinyl Stickers</span>
-                        </li>
-                        <li className="flex items-center gap-2 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
-                          <span>🗺️ Physical Japan Collector Map & Passport Stamps</span>
-                        </li>
-                        <li className="flex items-center gap-2 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
-                          <span>🔒 Zero renewal worries — locked in for the entire year</span>
-                        </li>
-                      </ul>
+                      <button
+                        onClick={() => {
+                          setDirectCheckoutTier("Standard");
+                          setDirectCheckoutDestination(planDestination);
+                          setDirectCheckoutGateway(planDestination === "India" ? "razorpay" : "paypal");
+                          setDirectCheckoutEmail(session?.email || "");
+                          setDirectCheckoutAddress(session?.subscriber?.shipping_address || "");
+                          setDirectCheckoutModalOpen(true);
+                        }}
+                        className="w-full py-3 bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark font-serif font-bold rounded-2xl text-xs transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <span>Subscribe to Standard ({planDestination === "India" ? "Razorpay" : "PayPal"})</span>
+                      </button>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setDirectCheckoutTier("Bundle");
-                        setDirectCheckoutDestination(planDestination);
-                        setDirectCheckoutGateway(planDestination === "India" ? "razorpay" : "paypal");
-                        setDirectCheckoutEmail(session?.email || "");
-                        setDirectCheckoutAddress(session?.subscriber?.shipping_address || "");
-                        setDirectCheckoutModalOpen(true);
-                      }}
-                      className="w-full py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-serif font-bold rounded-2xl text-xs transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                      <span>Subscribe to Bundle ({planDestination === "India" ? "Razorpay" : "PayPal"})</span>
-                    </button>
+                    {/* Bundle Tier Card */}
+                    <div className="bg-gradient-to-b from-[#fdfbf6] to-[#f7f2e4] border-2 border-amber-300/80 rounded-3xl p-6 flex flex-col justify-between space-y-6 relative vintage-shadow">
+                      <span className="absolute -top-3 right-6 bg-gradient-to-r from-amber-600 to-amber-700 text-white text-[9px] font-mono uppercase font-bold px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        12-Month Full Journey
+                      </span>
+
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-amber-800 font-bold">Bulk Passage</span>
+                            <h4 className="font-serif font-bold text-xl text-amber-950 mt-0.5">Bundle Plan</h4>
+                          </div>
+                          <span className="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200">
+                            Yearly Subscription
+                          </span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <span className="text-3xl font-serif font-bold text-amber-950 block">
+                            {planDestination === "India" 
+                              ? "₹10,000" 
+                              : INTERNATIONAL_CURRENCIES[selectedCurrency].bundleFormatted}
+                            <span className="text-xs font-normal text-amber-800 font-sans"> / year</span>
+                          </span>
+                          <p className="text-xs text-amber-900/80 leading-relaxed">
+                            {planDestination === "India" 
+                              ? "All 12 months in bulk! Yearly subscription — save ₹1,988 compared to monthly." 
+                              : "All 12 months in bulk! Pay for 11 months, get 1 full month + tracked international shipping completely FREE!"}
+                          </p>
+                        </div>
+
+                        <ul className="space-y-2 text-xs text-stone-800 pt-2 border-t border-amber-200/60">
+                          <li className="flex items-center gap-2 font-semibold text-emerald-900">
+                            <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                            <span>Complete 12-Month Japan Passage:</span>
+                          </li>
+                          <li className="flex items-center gap-2 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
+                            <span>📦 All 12 Hand-crafted Monthly Envelopes</span>
+                          </li>
+                          <li className="flex items-center gap-2 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
+                            <span>🖼️ Complete Set of 12 Ghibli Art Postcards</span>
+                          </li>
+                          <li className="flex items-center gap-2 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
+                            <span>✨ All 12 Custom Anime Vinyl Stickers</span>
+                          </li>
+                          <li className="flex items-center gap-2 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
+                            <span>🗺️ Physical Japan Collector Map & Passport Stamps</span>
+                          </li>
+                          <li className="flex items-center gap-2 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-700 shrink-0" />
+                            <span>🔒 Zero renewal worries — locked in for the entire year</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setDirectCheckoutTier("Bundle");
+                          setDirectCheckoutDestination(planDestination);
+                          setDirectCheckoutGateway(planDestination === "India" ? "razorpay" : "paypal");
+                          setDirectCheckoutEmail(session?.email || "");
+                          setDirectCheckoutAddress(session?.subscriber?.shipping_address || "");
+                          setDirectCheckoutModalOpen(true);
+                        }}
+                        className="w-full py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-serif font-bold rounded-2xl text-xs transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                        <span>Subscribe to Bundle ({planDestination === "India" ? "Razorpay" : "PayPal"})</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </motion.div>
           )}
 

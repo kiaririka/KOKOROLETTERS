@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { MapPin, Lock, Unlock, Clock, Truck, CheckCircle, Package, Sparkles, Archive } from "lucide-react";
+import { MapPin, Lock, Unlock, Clock, Truck, CheckCircle, Package, Sparkles, Archive, ChevronLeft, ChevronRight } from "lucide-react";
 import { REGIONS_METADATA, getRegionMonthStatus, getMonthName, getCurrentMonthNumber } from "../data/lore.ts";
 
 interface JapanMapProps {
@@ -23,7 +23,10 @@ export default function JapanMap({
   justUnlockedRegionId,
   onSelectRegion,
   regionsList,
-isSubscriber = false}: JapanMapProps) {
+isSubscriber = false
+}: JapanMapProps) {
+  const currentCalMonth = getCurrentMonthNumber();
+  const [trackerIndex, setTrackerIndex] = useState(() => Math.max(0, currentCalMonth - 1));
   // Define coordinates and stylized path/shape descriptors for the 12 regions on a 500x500 map canvas
   const mapRegions = [
     {
@@ -551,8 +554,8 @@ isSubscriber = false}: JapanMapProps) {
         </div>
       </div>
 
-      {/* Grid list of regions for easy keyboard accessibility */}
-      <div className="grid grid-cols-3 gap-2 mt-4">
+      {/* Grid list of regions for easy keyboard accessibility (responsive & overflow-safe) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-4">
         {regionsList.map((r) => {
           const isUnlocked = unlockedRegions.includes(r.region_id);
           const isActive = activeRegionId === r.region_id;
@@ -564,10 +567,10 @@ isSubscriber = false}: JapanMapProps) {
           const isPast = monthStatus === "past";
 
           const subLabel = isCurrent 
-            ? ` • ${monthName} (Current Month)` 
+            ? `${monthName.slice(0, 3)} • Current` 
             : isPast 
-            ? ` • ${monthName} (Past Archive)` 
-            : ` • ${monthName} (Coming Soon)`;
+            ? `${monthName.slice(0, 3)} • Archive` 
+            : `${monthName.slice(0, 3)} • Soon`;
 
           const isJustUnlocked = justUnlockedRegionId === r.region_id;
 
@@ -583,7 +586,7 @@ isSubscriber = false}: JapanMapProps) {
                   : { scale: 1 }
               }
               transition={{ duration: 0.45, ease: "easeOut" }}
-              className={`flex items-center gap-1.5 p-2 rounded-xl border text-[11px] font-medium transition-all text-left cursor-pointer ${
+              className={`flex items-center gap-1.5 p-2 rounded-xl border text-[11px] font-medium transition-all text-left cursor-pointer min-w-0 overflow-hidden ${
                 isJustUnlocked
                   ? "bg-emerald-50 border-emerald-400 text-emerald-900 ring-2 ring-emerald-300/60 shadow-sm"
                   : isActive
@@ -600,71 +603,174 @@ isSubscriber = false}: JapanMapProps) {
               }`}
             >
               {isUnlocked ? (
-                <Unlock className={`w-3 h-3 shrink-0 ${isActive || isJustUnlocked ? 'text-emerald-700' : 'text-emerald-600'}`} />
+                <Unlock className={`w-3.5 h-3.5 shrink-0 ${isActive || isJustUnlocked ? 'text-emerald-700' : 'text-emerald-600'}`} />
               ) : isCurrent ? (
-                <Sparkles className="w-3 h-3 shrink-0 text-amber-600 animate-pulse" />
+                <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-600 animate-pulse" />
               ) : isPast ? (
-                <Archive className="w-3 h-3 shrink-0 text-stone-400" />
+                <Archive className="w-3.5 h-3.5 shrink-0 text-stone-400" />
               ) : (
-                <Clock className="w-3 h-3 shrink-0 text-stone-300" />
+                <Clock className="w-3.5 h-3.5 shrink-0 text-stone-300" />
               )}
-              <span className="truncate flex-1">
-                {r.region_name}
-                <span className="text-[9px] block opacity-85 text-stone-500 font-mono font-medium mt-0.5">{subLabel}</span>
-              </span>
+              <div className="min-w-0 flex-1 overflow-hidden leading-tight">
+                <span className="truncate block font-semibold text-stone-800">{r.region_name}</span>
+                <span className="text-[9px] block opacity-80 text-stone-500 font-mono truncate">{subLabel}</span>
+              </div>
             </motion.button>
           );
         })}
       </div>
 
-      {/* Live Mail Dispatch Tracker Ledger */}
+      {/* Live Mail Dispatch Tracker Carousel */}
       {(() => {
-        const curMonth = getCurrentMonthNumber();
-        const prevMonth = curMonth > 1 ? curMonth - 1 : 12;
-        const nextMonth = curMonth < 12 ? curMonth + 1 : 1;
-
-        const curMeta = REGIONS_METADATA.find(m => m.month === curMonth);
-        const prevMeta = REGIONS_METADATA.find(m => m.month === prevMonth);
-        const nextMeta = REGIONS_METADATA.find(m => m.month === nextMonth);
+        const selectedMeta = REGIONS_METADATA[trackerIndex] || REGIONS_METADATA[0];
+        const monthNum = selectedMeta.month;
+        const monthStatus = getRegionMonthStatus(monthNum);
+        const monthName = getMonthName(monthNum);
+        const isCurrent = monthStatus === "current";
+        const isPast = monthStatus === "past";
+        const isSelectedActive = activeRegionId === selectedMeta.region_id;
 
         return (
           <div className="mt-6 border-t border-stone-200/60 pt-5 space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 font-serif">
-              Active Mail Dispatch Tracker
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-stone-50/70 border border-stone-200/60 p-3 rounded-2xl flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center shrink-0">
-                  <Archive className="w-4 h-4" />
-                </div>
-                <div className="space-y-0.5">
-                  <div className="text-[10px] font-bold font-serif text-stone-700 leading-none">Past Month ({getMonthName(prevMonth)})</div>
-                  <div className="text-[11px] text-stone-800 font-semibold">{prevMeta?.region_name || "Past Region"}</div>
-                  <div className="text-[9px] text-stone-500 font-mono">Archived • Order Separately</div>
-                </div>
+            {/* Header with Navigation Controls */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-stone-600 font-serif">
+                  Mail Dispatch Tracker
+                </h4>
+                <span className="text-[10px] font-mono text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full border border-stone-200">
+                  {trackerIndex + 1} / 12
+                </span>
               </div>
+              <div className="flex items-center gap-1.5">
+                {trackerIndex !== currentCalMonth - 1 && (
+                  <button
+                    onClick={() => setTrackerIndex(currentCalMonth - 1)}
+                    className="text-[10px] font-mono font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded-lg border border-amber-200 transition-colors cursor-pointer mr-1"
+                  >
+                    Current Month
+                  </button>
+                )}
+                <button
+                  onClick={() => setTrackerIndex(prev => (prev > 0 ? prev - 1 : 11))}
+                  className="w-7 h-7 rounded-lg border border-stone-200 hover:border-stone-300 hover:bg-stone-50 flex items-center justify-center text-stone-600 transition-colors cursor-pointer"
+                  title="Previous Dispatch"
+                  aria-label="Previous Dispatch"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setTrackerIndex(prev => (prev < 11 ? prev + 1 : 0))}
+                  className="w-7 h-7 rounded-lg border border-stone-200 hover:border-stone-300 hover:bg-stone-50 flex items-center justify-center text-stone-600 transition-colors cursor-pointer"
+                  title="Next Dispatch"
+                  aria-label="Next Dispatch"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
 
-              <div className="bg-amber-50/80 border border-amber-200/80 p-3 rounded-2xl flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 animate-pulse">
-                  <Truck className="w-4 h-4 animate-bounce" style={{ animationDuration: '3s' }} />
+            {/* Carousel Active Slide Card */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedMeta.region_id}
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+                className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                  isCurrent
+                    ? "bg-gradient-to-r from-amber-50/90 to-emerald-50/50 border-amber-200/80 shadow-xs"
+                    : isPast
+                    ? "bg-stone-50/80 border-stone-200/80"
+                    : "bg-stone-50/50 border-stone-200/60"
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                      isCurrent
+                        ? "bg-amber-100 text-amber-800 animate-pulse"
+                        : isPast
+                        ? "bg-stone-100 text-stone-600"
+                        : "bg-stone-100 text-stone-400"
+                    }`}
+                  >
+                    {isCurrent ? (
+                      <Truck className="w-5 h-5 text-amber-800" />
+                    ) : isPast ? (
+                      <Archive className="w-5 h-5 text-stone-500" />
+                    ) : (
+                      <Clock className="w-5 h-5 text-stone-400" />
+                    )}
+                  </div>
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold font-serif uppercase tracking-wider text-stone-600">
+                        Month {monthNum}: {monthName}
+                      </span>
+                      <span
+                        className={`text-[9px] font-mono px-2 py-0.5 rounded-full border ${
+                          isCurrent
+                            ? "bg-amber-100 text-amber-900 border-amber-200 font-bold"
+                            : isPast
+                            ? "bg-stone-100 text-stone-600 border-stone-200"
+                            : "bg-blue-50 text-blue-700 border-blue-200"
+                        }`}
+                      >
+                        {isCurrent ? "Active Monthly Dispatch" : isPast ? "Archived Parcel" : "Scheduled Release"}
+                      </span>
+                    </div>
+                    <h5 className="text-sm font-bold font-serif text-stone-900 truncate">
+                      {selectedMeta.region_name}
+                    </h5>
+                    <p className="text-[11px] text-stone-500 font-sans">
+                      {isCurrent
+                        ? "Now shipping! Hand-crafted Ghibli art postcard, sticker & sealed lore letter."
+                        : isPast
+                        ? "Archived passage from earlier this year. Available as an individual back-order."
+                        : "Upcoming lunar chapter. Preserved and locked until its designated month."}
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  <div className="text-[10px] font-bold font-serif text-amber-950 leading-none">Current Month ({getMonthName(curMonth)})</div>
-                  <div className="text-[11px] text-amber-900 font-bold">{curMeta?.region_name || "Current Region"}</div>
-                  <div className="text-[9px] text-amber-700 font-mono">Active Monthly Dispatch</div>
-                </div>
-              </div>
 
-              <div className="bg-stone-50/50 border border-stone-200/60 p-3 rounded-2xl flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-stone-100 text-stone-400 flex items-center justify-center shrink-0">
-                  <Clock className="w-4 h-4" />
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end pt-1 sm:pt-0 border-t sm:border-t-0 border-stone-200/50">
+                  <button
+                    onClick={() => onSelectRegion(selectedMeta.region_id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelectedActive
+                        ? "bg-stone-800 text-white shadow-xs"
+                        : "bg-white border border-stone-200 hover:border-stone-300 text-stone-700 hover:bg-stone-50 shadow-2xs"
+                    }`}
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>{isSelectedActive ? "Viewing on Map" : "View on Map"}</span>
+                  </button>
                 </div>
-                <div className="space-y-0.5">
-                  <div className="text-[10px] font-bold font-serif text-stone-600 leading-none">Upcoming Month ({getMonthName(nextMonth)})</div>
-                  <div className="text-[11px] text-stone-700 font-semibold">{nextMeta?.region_name || "Upcoming Region"}</div>
-                  <div className="text-[9px] text-stone-400 font-mono">Scheduled • Stays Locked</div>
-                </div>
-              </div>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Carousel Dots Indicator */}
+            <div className="flex items-center justify-center gap-1.5 pt-1">
+              {REGIONS_METADATA.map((m, idx) => {
+                const isCur = m.month === currentCalMonth;
+                const isSelected = idx === trackerIndex;
+                return (
+                  <button
+                    key={m.region_id}
+                    onClick={() => setTrackerIndex(idx)}
+                    title={`${getMonthName(m.month)} (${m.region_name})`}
+                    className={`transition-all rounded-full cursor-pointer ${
+                      isSelected
+                        ? "w-5 h-2 bg-stone-800"
+                        : isCur
+                        ? "w-2 h-2 bg-amber-500 ring-2 ring-amber-300"
+                        : "w-2 h-2 bg-stone-200 hover:bg-stone-300"
+                    }`}
+                    aria-label={`Go to ${getMonthName(m.month)}`}
+                  />
+                );
+              })}
             </div>
           </div>
         );
