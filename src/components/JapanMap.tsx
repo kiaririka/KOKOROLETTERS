@@ -129,12 +129,16 @@ export default function JapanMap({
       </div>
 
       {/* The Authentic Hand-Painted Japanese Map Container (Full Width, Zero Card Nesting) */}
-      <div className="relative aspect-[16/9] w-full rounded-2xl overflow-visible border border-stone-300 shadow-sm bg-[#f6f1e3]">
+      <div className="relative aspect-[16/9] w-full rounded-2xl overflow-visible border border-[#9cbfae]/40 shadow-sm bg-[#fbf9f4]">
         <img
           src={japanMapImg}
           alt="Hand-Painted Antique Map of Japan"
-          className="w-full h-full object-cover select-none pointer-events-none rounded-2xl"
+          className="w-full h-full object-cover select-none pointer-events-none rounded-2xl filter saturate-[0.85] hue-rotate-[16deg] brightness-[1.02]"
         />
+
+        {/* Ghibli Sage Theme Color Tint: Harmonizes map oceans and land with the Kokoro Letters website theme */}
+        <div className="absolute inset-0 bg-[#86ab9a]/25 mix-blend-color pointer-events-none rounded-2xl" />
+        <div className="absolute inset-0 bg-[#faf6eb]/15 mix-blend-soft-light pointer-events-none rounded-2xl" />
 
         {/* SVG Regional Partitions Overlay: Each territorial partition glows with luminous aura when hovered */}
         <svg
@@ -299,145 +303,154 @@ export default function JapanMap({
             const isCurrent = monthStatus === "current";
             const isFuture = monthStatus === "future";
 
-            // Prevent tooltip from clipping boundaries on any viewport
-            const isTopArea = activeHoveredPin.y < 35;
+            // Pins in the northern/upper half (Hokkaido, Tohoku) show popup BELOW the pin (isTopArea = true)
+            // Pins in the southern/central half show popup ABOVE the pin (isTopArea = false)
+            const isTopArea = activeHoveredPin.y < 48;
             const isNearLeft = activeHoveredPin.x < 24;
             const isNearRight = activeHoveredPin.x > 76;
 
             const pointerAlignment = isNearLeft
-              ? "self-start ml-5"
+              ? "self-start ml-8"
               : isNearRight
-              ? "self-end mr-5"
+              ? "self-end mr-8"
               : "self-center";
 
             return (
-              <motion.div
-                key={`html-tooltip-${activeHoveredPin.id}`}
-                initial={{ opacity: 0, y: isTopArea ? -6 : 8, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: isTopArea ? -6 : 8, scale: 0.95 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-                className="absolute z-50 flex flex-col pointer-events-none"
+              <div
+                key={`tooltip-anchor-${activeHoveredPin.id}`}
+                className="absolute z-50 pointer-events-none"
                 style={{ 
                   left: `${activeHoveredPin.x}%`,
                   top: `${activeHoveredPin.y}%`,
                   transform: isTopArea 
-                    ? (isNearLeft ? "translate(-12%, 14px)" : isNearRight ? "translate(-88%, 14px)" : "translate(-50%, 14px)")
-                    : (isNearLeft ? "translate(-12%, -100%)" : isNearRight ? "translate(-88%, -100%)" : "translate(-50%, -100%)"),
-                  marginTop: isTopArea ? "0px" : "-10px"
+                    ? (isNearLeft ? "translate(-15%, 16px)" : isNearRight ? "translate(-85%, 16px)" : "translate(-50%, 16px)")
+                    : (isNearLeft ? "translate(-15%, -100%)" : isNearRight ? "translate(-85%, -100%)" : "translate(-50%, -100%)"),
+                  marginTop: isTopArea ? "0px" : "-12px"
                 }}
               >
-                {/* Pointer Triangle (if above pin, points down) */}
-                {!isTopArea && (
-                  <div className={`order-2 w-0 h-0 border-l-[9px] border-r-[9px] border-t-[9px] border-transparent border-t-[#fcfaf3] drop-shadow-[0_4px_8px_rgba(27,46,36,0.18)] relative -top-[1px] ${pointerAlignment}`}></div>
-                )}
-
-                {/* Tooltip Card Body: Ghibli Warm Japanese Parchment Theme (Matching the website palette) */}
-                <div 
-                  onMouseEnter={handleMouseEnterTooltip}
-                  onMouseLeave={handleMouseLeaveTooltip}
-                  className="order-1 bg-[#fcfaf3] border-2 border-[#547365]/70 ring-2 ring-[#eedba5] shadow-[0_18px_40px_rgba(27,46,36,0.22),0_4px_12px_rgba(0,0,0,0.08)] rounded-2xl p-4 sm:p-5 max-w-[285px] sm:max-w-[310px] w-[280px] sm:w-[300px] text-center flex flex-col items-center relative overflow-hidden pointer-events-auto"
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: isTopArea ? -6 : 6 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: isTopArea ? -6 : 6 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="flex flex-col items-center"
                 >
-                  {/* Gentle Ghibli Sage & Bamboo Top Trim */}
-                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#9cbfae] via-[#eedba5] to-[#9cbfae]" />
-
-                  {/* Header with Warm Japanese Lantern and Title */}
-                  <div className="flex items-center justify-center gap-2 w-full mb-1.5 mt-0.5">
-                    <div className="w-5 h-5 shrink-0 drop-shadow-xs">
-                      <svg viewBox="0 0 20 20" className="w-full h-full">
-                        <g>
-                          <rect x="6" y="0" width="8" height="2" fill="#451a03" />
-                          <rect x="4" y="2" width="12" height="2" fill="#78350f" />
-                          <rect x="4" y="4" width="12" height="12" fill={isFuture ? "#9ca3af" : isPast ? "#b45309" : "#d97706"} className={isCurrent ? "animate-pulse" : ""} />
-                          <rect x="6" y="6" width="8" height="8" fill={isFuture ? "#d1d5db" : isPast ? "#d97706" : "#fcd34d"} />
-                          <rect x="8" y="8" width="4" height="4" fill={isFuture ? "#f3f4f6" : isPast ? "#fef3c7" : "#fffbeb"} />
-                          <rect x="4" y="16" width="12" height="2" fill="#78350f" />
-                          <rect x="6" y="18" width="8" height="2" fill="#451a03" />
-                        </g>
-                      </svg>
-                    </div>
-
-                    <h4 className="font-serif font-bold text-[#1b2e24] text-base leading-tight tracking-wide">
-                      {activeHoveredPin.name}
-                    </h4>
-                  </div>
-
-                  {/* Subtext */}
-                  <p className="text-xs text-[#547365] font-sans font-medium leading-relaxed mb-2.5 w-full text-center">
-                    {isUnlocked 
-                      ? "Explore travel letters & lore" 
-                      : isCurrent
-                      ? `${monthName} Dispatch • Available Now`
-                      : isPast
-                      ? `${monthName} Dispatch • Past Archive`
-                      : `Scheduled for ${monthName}`}
-                  </p>
-
-                  {/* Shipping logistics status banner: Generous layout without any text cut-off */}
-                  {isCurrent && (
-                    <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-amber-100/90 border border-amber-300 text-amber-950 text-xs font-bold font-sans shadow-2xs flex items-center justify-center gap-2 w-full text-center animate-pulse">
-                      <Truck className="w-4 h-4 text-amber-800 shrink-0" />
-                      <span>{monthName}: Active Monthly Dispatch</span>
-                    </div>
-                  )}
-                  {isPast && (
-                    <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-[#f4efe4] border border-[#dcd3b9] text-[#547365] text-xs font-medium font-sans flex items-center justify-center gap-2 w-full text-center">
-                      <Archive className="w-4 h-4 text-[#8c6b45] shrink-0" />
-                      <span>{monthName}: Past Archive (Kit order)</span>
-                    </div>
-                  )}
-                  {isFuture && (
-                    <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 text-xs font-medium font-sans flex items-center justify-center gap-2 w-full text-center">
-                      <Clock className="w-4 h-4 text-stone-400 shrink-0" />
-                      <span>{monthName}: Coming Soon</span>
-                    </div>
+                  {/* If card is BELOW pin (isTopArea = true), triangle is at TOP of card pointing UP to pin */}
+                  {isTopArea && (
+                    <div 
+                      className={`w-0 h-0 border-l-[9px] border-r-[9px] border-b-[9px] border-transparent border-b-[#fcfaf3] drop-shadow-[0_-3px_5px_rgba(27,46,36,0.15)] relative -bottom-[1px] z-10 ${pointerAlignment}`}
+                    />
                   )}
 
-                  {/* State-Awareness Banner */}
-                  <div className={`text-[10px] font-mono font-semibold py-1 px-2 rounded-lg mb-3 w-full text-center leading-normal border ${
-                    isUnlocked
-                      ? "text-emerald-900 bg-emerald-50 border-emerald-200"
-                      : isCurrent
-                      ? "text-amber-900 bg-amber-50/80 border-amber-200"
-                      : "text-stone-700 bg-stone-100 border-stone-200"
-                  }`}>
-                    {isUnlocked 
-                      ? `${activeHoveredPin.name} | Unlocked in Journal` 
-                      : isCurrent 
-                      ? `${activeHoveredPin.name} | Subscribe to Unlock` 
-                      : isPast
-                      ? `${activeHoveredPin.name} | Archived Dispatch (Locked)`
-                      : `${activeHoveredPin.name} | Coming Soon (Locked)`}
-                  </div>
-
-                  {/* Action Button */}
-                  <button 
-                    onClick={() => onSelectRegion(activeHoveredPin.id)}
-                    className={`text-xs font-serif font-bold py-2 px-4 rounded-xl w-full shadow-2xs transition-all cursor-pointer hover:scale-[1.01] active:scale-95 ${
-                      isUnlocked
-                        ? "bg-[#527e69] hover:bg-[#3d604f] text-white"
-                        : isCurrent
-                        ? "bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold shadow-amber-500/20"
-                        : isPast
-                        ? "bg-[#e8decb] hover:bg-[#ded1bc] text-[#3d5a49] border border-[#dcd3b9]"
-                        : "bg-stone-200 hover:bg-stone-300 text-stone-600"
-                    }`}
+                  {/* Tooltip Card Body: Ghibli Warm Japanese Parchment Theme (Matching the website palette) */}
+                  <div 
+                    onMouseEnter={handleMouseEnterTooltip}
+                    onMouseLeave={handleMouseLeaveTooltip}
+                    className="bg-[#fcfaf3] border-2 border-[#547365]/80 ring-2 ring-[#eedba5] shadow-[0_18px_40px_rgba(27,46,36,0.22),0_4px_12px_rgba(0,0,0,0.08)] rounded-2xl p-4 sm:p-5 max-w-[285px] sm:max-w-[310px] w-[275px] sm:w-[295px] text-center flex flex-col items-center relative overflow-hidden pointer-events-auto"
                   >
-                    {isUnlocked 
-                      ? "View Region Letters →" 
-                      : isCurrent 
-                      ? (isSubscriber ? "Stamp Journal" : "Subscribe to Unlock →") 
-                      : isPast
-                      ? "Archived Dispatch"
-                      : "Coming Soon"}
-                  </button>
-                </div>
+                    {/* Gentle Ghibli Sage & Bamboo Top Trim */}
+                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#9cbfae] via-[#eedba5] to-[#9cbfae]" />
 
-                {/* Pointer Triangle (if below pin, points up) */}
-                {isTopArea && (
-                  <div className={`order-0 w-0 h-0 border-l-[9px] border-r-[9px] border-b-[9px] border-transparent border-b-[#fcfaf3] drop-shadow-[0_-4px_8px_rgba(27,46,36,0.18)] relative -bottom-[1px] ${pointerAlignment}`}></div>
-                )}
-              </motion.div>
+                    {/* Header with Warm Japanese Lantern and Title */}
+                    <div className="flex items-center justify-center gap-2 w-full mb-1.5 mt-0.5">
+                      <div className="w-5 h-5 shrink-0 drop-shadow-xs">
+                        <svg viewBox="0 0 20 20" className="w-full h-full">
+                          <g>
+                            <rect x="6" y="0" width="8" height="2" fill="#451a03" />
+                            <rect x="4" y="2" width="12" height="2" fill="#78350f" />
+                            <rect x="4" y="4" width="12" height="12" fill={isFuture ? "#9ca3af" : isPast ? "#b45309" : "#d97706"} className={isCurrent ? "animate-pulse" : ""} />
+                            <rect x="6" y="6" width="8" height="8" fill={isFuture ? "#d1d5db" : isPast ? "#d97706" : "#fcd34d"} />
+                            <rect x="8" y="8" width="4" height="4" fill={isFuture ? "#f3f4f6" : isPast ? "#fef3c7" : "#fffbeb"} />
+                            <rect x="4" y="16" width="12" height="2" fill="#78350f" />
+                            <rect x="6" y="18" width="8" height="2" fill="#451a03" />
+                          </g>
+                        </svg>
+                      </div>
+
+                      <h4 className="font-serif font-bold text-[#1b2e24] text-base leading-tight tracking-wide">
+                        {activeHoveredPin.name}
+                      </h4>
+                    </div>
+
+                    {/* Subtext */}
+                    <p className="text-xs text-[#547365] font-sans font-medium leading-relaxed mb-2.5 w-full text-center">
+                      {isUnlocked 
+                        ? "Explore travel letters & lore" 
+                        : isCurrent
+                        ? `${monthName} Dispatch • Available Now`
+                        : isPast
+                        ? `${monthName} Dispatch • Past Archive`
+                        : `Scheduled for ${monthName}`}
+                    </p>
+
+                    {/* Shipping logistics status banner: Generous layout without any text cut-off */}
+                    {isCurrent && (
+                      <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-amber-100/90 border border-amber-300 text-amber-950 text-xs font-bold font-sans shadow-2xs flex items-center justify-center gap-2 w-full text-center animate-pulse">
+                        <Truck className="w-4 h-4 text-amber-800 shrink-0" />
+                        <span>{monthName}: Active Monthly Dispatch</span>
+                      </div>
+                    )}
+                    {isPast && (
+                      <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-[#f4efe4] border border-[#dcd3b9] text-[#547365] text-xs font-medium font-sans flex items-center justify-center gap-2 w-full text-center">
+                        <Archive className="w-4 h-4 text-[#8c6b45] shrink-0" />
+                        <span>{monthName}: Past Archive (Kit order)</span>
+                      </div>
+                    )}
+                    {isFuture && (
+                      <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 text-xs font-medium font-sans flex items-center justify-center gap-2 w-full text-center">
+                        <Clock className="w-4 h-4 text-stone-400 shrink-0" />
+                        <span>{monthName}: Coming Soon</span>
+                      </div>
+                    )}
+
+                    {/* State-Awareness Banner */}
+                    <div className={`text-[10px] font-mono font-semibold py-1 px-2 rounded-lg mb-3 w-full text-center leading-normal border ${
+                      isUnlocked
+                        ? "text-emerald-900 bg-emerald-50 border-emerald-200"
+                        : isCurrent
+                        ? "text-amber-900 bg-amber-50/80 border-amber-200"
+                        : "text-stone-700 bg-stone-100 border-stone-200"
+                    }`}>
+                      {isUnlocked 
+                        ? `${activeHoveredPin.name} | Unlocked in Journal` 
+                        : isCurrent 
+                        ? `${activeHoveredPin.name} | Subscribe to Unlock` 
+                        : isPast
+                        ? `${activeHoveredPin.name} | Archived Dispatch (Locked)`
+                        : `${activeHoveredPin.name} | Coming Soon (Locked)`}
+                    </div>
+
+                    {/* Action Button */}
+                    <button 
+                      onClick={() => onSelectRegion(activeHoveredPin.id)}
+                      className={`text-xs font-serif font-bold py-2 px-4 rounded-xl w-full shadow-2xs transition-all cursor-pointer hover:scale-[1.01] active:scale-95 ${
+                        isUnlocked
+                          ? "bg-[#527e69] hover:bg-[#3d604f] text-white"
+                          : isCurrent
+                          ? "bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold shadow-amber-500/20"
+                          : isPast
+                          ? "bg-[#e8decb] hover:bg-[#ded1bc] text-[#3d5a49] border border-[#dcd3b9]"
+                          : "bg-stone-200 hover:bg-stone-300 text-stone-600"
+                      }`}
+                    >
+                      {isUnlocked 
+                        ? "View Region Letters →" 
+                        : isCurrent 
+                        ? (isSubscriber ? "Stamp Journal" : "Subscribe to Unlock →") 
+                        : isPast
+                        ? "Archived Dispatch"
+                        : "Coming Soon"}
+                    </button>
+                  </div>
+
+                  {/* If card is ABOVE pin (isTopArea = false), triangle is at BOTTOM of card pointing DOWN to pin */}
+                  {!isTopArea && (
+                    <div 
+                      className={`w-0 h-0 border-l-[9px] border-r-[9px] border-t-[9px] border-transparent border-t-[#fcfaf3] drop-shadow-[0_3px_5px_rgba(27,46,36,0.15)] relative -top-[1px] z-10 ${pointerAlignment}`}
+                    />
+                  )}
+                </motion.div>
+              </div>
             );
           })()}
         </AnimatePresence>
