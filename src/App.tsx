@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -48,8 +48,6 @@ import {
   checkAndExpireOverdueSubscriptions,
   getAllOrders
 } from "./firestoreService.ts";
-import MonthlyLetterShowcase from "./components/MonthlyLetterShowcase.tsx";
-import FaqSection from "./components/FaqSection.tsx";
 import { Region, Subscriber, PlanTier, SubscriptionStatus } from "./types.ts";
 import { REGIONS_METADATA, LORE_DATA, getRegionMonthStatus, MonthStatus, getCurrentMonthNumber, getMonthName } from "./data/lore.ts";
 
@@ -60,7 +58,7 @@ export const ADMIN_EMAILS = [
 
 export default function App() {
   // Navigation State (Ghibli multi-page tabs)
-  const [activeTab, setActiveTab] = useState<"journey" | "subscription" | "journal" | "newsletter" | "admin">("journey");
+  const [activeTab, setActiveTab] = useState<"journey" | "subscription" | "journal" | "admin">("journey");
 
   // Session & Regions State
   const [session, setSession] = useState<{
@@ -111,12 +109,6 @@ export default function App() {
   const [generatedLink, setGeneratedLink] = useState("");
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [simulatingWebhook, setSimulatingWebhook] = useState(false);
-
-  // Traveler's Ticket Modal state
-  const [ticketModalOpen, setTicketModalOpen] = useState(false);
-  const [ticketRegion, setTicketRegion] = useState("");
-  const [ticketCountry, setTicketCountry] = useState<"India" | "International">("India");
-  const [ticketPlan, setTicketPlan] = useState("");
 
   // Guest Direct Checkout Modal state
   const [directCheckoutModalOpen, setDirectCheckoutModalOpen] = useState(false);
@@ -617,14 +609,13 @@ export default function App() {
             </div>
           </div>
 
-          {/* Navigation Links matching Screenshot 1 */}
+          {/* Navigation */}
           <nav className="flex items-center gap-6 text-sm font-medium">
             {[
-              { id: "journey", label: "Our Journey" },
-              { id: "subscription", label: "Subscription" },
-              { id: "journal", label: "Travel Journal" },
-              { id: "newsletter", label: "Newsletter" },
-              ...(isAdmin ? [{ id: "admin", label: "Admin Dashboard" }] : [])
+              { id: "journey", label: "Home" },
+              { id: "subscription", label: "Subscribe" },
+              { id: "journal", label: "My Journal" },
+              ...(isAdmin ? [{ id: "admin", label: "Admin" }] : [])
             ].map(tab => (
               <button
                 key={tab.id}
@@ -679,7 +670,7 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <AnimatePresence mode="wait">
-          {/* PAGE 1: OUR JOURNEY TAB */}
+          {/* PAGE 1: HOME / LANDING */}
           {activeTab === "journey" && (
             <motion.div
               key="journey-page"
@@ -687,24 +678,27 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="space-y-12"
+              className="space-y-10"
             >
-              {/* Hero Banner (Sage green Ghibli theme) */}
-              <div className="bg-ghibli-green text-ghibli-green-dark rounded-3xl p-10 md:p-16 text-center space-y-6 relative overflow-hidden shadow-xs">
+              {/* Hero */}
+              <div className="bg-ghibli-green text-ghibli-green-dark rounded-3xl p-10 md:p-16 text-center space-y-5 relative overflow-hidden shadow-xs">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,#faf6eb20,#0000_50%)] pointer-events-none" />
-                
                 <div className="w-12 h-12 rounded-full bg-ghibli-sand mx-auto flex items-center justify-center text-ghibli-green-dark border border-ghibli-green-dark/10">
                   <Compass className="w-6 h-6" />
                 </div>
-
                 <h2 className="text-3xl md:text-5xl font-bold font-serif tracking-tight max-w-3xl mx-auto leading-tight text-ghibli-green-dark">
-                  Step through the meadow into the spirit world
+                  A monthly letter from Japan
                 </h2>
-                <p className="text-ghibli-green-dark/80 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-                  Each month, a handcrafted kit arrives at your door &mdash; lore, art, and quiet magic from one of Japan's twelve regions. Trace the path across our map to begin.
+                <p className="text-ghibli-green-dark/80 text-sm md:text-base max-w-xl mx-auto leading-relaxed">
+                  Kokoro Letters is a hand-crafted physical mail subscription — art prints, stickers, wax-sealed letters, and lore from one of Japan's twelve Ghibli-inspired regions, delivered to your door every month.
                 </p>
-
-                <div className="flex flex-wrap justify-center gap-4 pt-4">
+                <div className="flex flex-wrap justify-center gap-3 pt-2">
+                  <button
+                    onClick={() => setActiveTab("subscription")}
+                    className="px-6 py-3 bg-ghibli-sand hover:bg-[#eed7b1] text-ghibli-green-dark rounded-xl text-sm font-semibold transition-all shadow-xs"
+                  >
+                    See Subscription Plans
+                  </button>
                   <button
                     onClick={() => {
                       setActiveTab("journal");
@@ -712,124 +706,45 @@ export default function App() {
                         document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
                       }, 100);
                     }}
-                    className="px-6 py-3 bg-ghibli-sand hover:bg-[#eed7b1] text-ghibli-green-dark rounded-xl text-sm font-semibold transition-all shadow-xs"
-                  >
-                    Begin the Journey
-                  </button>
-                  <button
-                    onClick={() => {
-                      document.getElementById("journey-unfolds-section")?.scrollIntoView({ behavior: "smooth" });
-                    }}
                     className="px-6 py-3 border border-ghibli-green-dark/30 hover:bg-ghibli-green-dark/10 text-ghibli-green-dark rounded-xl text-sm font-semibold transition-all"
                   >
-                    Explore Our Lore
+                    Explore the Map
                   </button>
                 </div>
               </div>
 
-              {/* How the Journey Unfolds Section */}
-              <div id="journey-unfolds-section" className="py-8 space-y-12">
-                <div className="text-center space-y-4 max-w-3xl mx-auto">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#faf6eb] text-ghibli-green-dark text-[11px] font-bold tracking-wide border border-[#d3cbbe]">
-                    <Sparkles className="w-3.5 h-3.5 text-ghibli-sage" />
-                    <span>A Postcard Love Letter to Japan</span>
-                  </div>
-                  <h3 className="text-3xl md:text-4xl font-bold font-serif text-ghibli-green-dark">
-                    How the Journey Unfolds
-                  </h3>
-                  <p className="text-xs md:text-sm text-ghibli-sage leading-relaxed max-w-2xl mx-auto">
-                    Kokoro Letters is a monthly physical mail club made to share a profound love for Japan. Over the course of a year, we travel together through <strong>12 scenic regions</strong> across Japan that inspired beloved Ghibli movies. Every dispatch is strictly handmade, hand-printed, and sent with pure devotion.
-                  </p>
-                </div>
-
-                {/* Core Philosophy Split Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                  <div className="bg-ghibli-cream border border-ghibli-cream-dark rounded-3xl p-8 space-y-4 vintage-shadow relative overflow-hidden">
-                    <div className="absolute -right-8 -bottom-8 opacity-5 text-ghibli-green-dark text-9xl font-serif select-none pointer-events-none">画</div>
-                    <div className="w-12 h-12 rounded-full bg-ghibli-green-light flex items-center justify-center text-ghibli-green-dark">
-                      <Heart className="w-5 h-5" />
-                    </div>
-                    <h4 className="font-serif font-bold text-xl text-ghibli-green-dark">100% Handmade & Hand-printed</h4>
-                    <p className="text-xs md:text-sm text-ghibli-sage leading-relaxed">
-                      We cherish tactile authenticity. Every single art print, letter, and sticker in your monthly envelope is hand-printed and prepared manually. No mass production, no artificial shortcuts—just raw, gorgeous materials that celebrate slow craftsmanship and physical connection.
-                    </p>
-                  </div>
-
-                  <div className="bg-[#f0eadd]/40 border border-[#d3cbbe]/60 rounded-3xl p-8 space-y-4 vintage-shadow relative overflow-hidden">
-                    <div className="absolute -right-8 -bottom-8 opacity-5 text-ghibli-green-dark text-9xl font-serif select-none pointer-events-none">図</div>
-                    <div className="w-12 h-12 rounded-full bg-ghibli-green-light flex items-center justify-center text-ghibli-green-dark">
-                      <Compass className="w-5 h-5" />
-                    </div>
-                    <h4 className="font-serif font-bold text-xl text-ghibli-green-dark">Interactive 12-Region Collectible Map</h4>
-                    <p className="text-xs md:text-sm text-ghibli-sage leading-relaxed">
-                      When you subscribe in your first month, you receive a large, beautifully printed physical map of Japan with all 12 regions marked. As each month passes and you receive your new regional stickers, paste them directly onto the physical map to complete your ultimate travel collection!
-                    </p>
-                  </div>
-                </div>
-
-                {/* What You Get in Every Monthly Physical Mail */}
-                <div className="space-y-6 pt-4">
-                  <h4 className="text-lg md:text-xl font-bold font-serif text-center text-ghibli-green-dark">
-                    What lands in your mailbox every month?
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
-                    {[
-                      {
-                        title: "Ghibli Art Print",
-                        desc: "A hand-printed art print of a breathtaking scene from the Ghibli movie inspired by that month's region.",
-                        icon: <Image className="w-5 h-5 text-emerald-800" />
-                      },
-                      {
-                        title: "Anime Sticker",
-                        desc: "A gorgeous, custom-illustrated sticker inspired by the characters or spirits of that specific anime.",
-                        icon: <Sparkles className="w-5 h-5 text-emerald-800" />
-                      },
-                      {
-                        title: "Region Sticker",
-                        desc: "A beautiful regional sticker designed for that territory. Stick it onto your physical map of Japan to complete it!",
-                        icon: <Tag className="w-5 h-5 text-emerald-800" />
-                      },
-                      {
-                        title: "Creator's Lore Letter",
-                        desc: "A personal letter from me describing the region's scenery, the anime it inspired, and the story of how it was built.",
-                        icon: <BookOpen className="w-5 h-5 text-emerald-800" />
-                      }
-                    ].map((item, i) => (
-                      <div key={i} className="bg-white border border-ghibli-green-light/40 rounded-2xl p-5 space-y-3 vintage-shadow text-center hover:border-ghibli-green transition-colors">
-                        <div className="w-10 h-10 rounded-full bg-ghibli-green-light flex items-center justify-center mx-auto text-ghibli-green-dark">
-                          {item.icon}
-                        </div>
-                        <h5 className="font-serif font-bold text-xs text-ghibli-green-dark">{item.title}</h5>
-                        <p className="text-[11px] text-ghibli-sage leading-relaxed">{item.desc}</p>
+              {/* What is inside each month */}
+              <div className="space-y-5">
+                <h3 className="text-xl font-bold font-serif text-center text-ghibli-green-dark">
+                  What arrives in your mailbox
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+                  {[
+                    { title: "Ghibli Art Print", icon: <Image className="w-5 h-5 text-emerald-800" />, desc: "Hand-printed regional scene" },
+                    { title: "Character Sticker", icon: <Sparkles className="w-5 h-5 text-emerald-800" />, desc: "Custom illustrated anime art" },
+                    { title: "Map Stamp", icon: <Tag className="w-5 h-5 text-emerald-800" />, desc: "Complete your collectible map" },
+                    { title: "Lore Letter", icon: <BookOpen className="w-5 h-5 text-emerald-800" />, desc: "Hand-sealed creator's note" }
+                  ].map((item, i) => (
+                    <div key={i} className="bg-white border border-ghibli-green-light/40 rounded-2xl p-4 text-center space-y-2 vintage-shadow hover:border-ghibli-green transition-colors">
+                      <div className="w-9 h-9 rounded-full bg-ghibli-green-light flex items-center justify-center mx-auto">
+                        {item.icon}
                       </div>
-                    ))}
-                  </div>
+                      <p className="font-serif font-bold text-xs text-ghibli-green-dark">{item.title}</p>
+                      <p className="text-[11px] text-ghibli-sage leading-snug">{item.desc}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Monthly Letter Showcase Section */}
-              <div className="py-4">
-                <MonthlyLetterShowcase
-                  isSubscriber={session?.subscriber?.subscription_status === "Active"}
-                  onSubscribe={() => setActiveTab("subscription")}
-                />
-              </div>
-
-              {/* Interactive Map Section */}
-              <div className="py-4 space-y-6">
-                <div className="text-center space-y-2">
-                  <h3 className="text-2xl font-bold font-serif text-ghibli-green-dark">
-                    Your Path Across Japan
-                  </h3>
-                  <p className="text-xs text-ghibli-sage max-w-lg mx-auto">
-                    Hover a checkpoint to glimpse its name and status. Tap a region below to jump into your travel journal and stamp your ticket.
+              {/* Map preview */}
+              <div className="space-y-4">
+                <div className="text-center space-y-1">
+                  <h3 className="text-xl font-bold font-serif text-ghibli-green-dark">12 Regions. 12 Months.</h3>
+                  <p className="text-xs text-ghibli-sage max-w-md mx-auto">
+                    Each month covers one region inspired by a beloved Ghibli film. Click a region on the map to explore.
                   </p>
                 </div>
-                
-                <div className="max-w-xl mx-auto">
-                  <div className="text-center bg-[#fdfcf7] py-2 px-4 rounded-full border border-ghibli-cream-dark/65 max-w-xs mx-auto mb-3 text-[11px] font-medium text-ghibli-sage">
-                    🌏 Global Journey Map (Visible to Everyone)
-                  </div>
+                <div className="max-w-md mx-auto">
                   <JapanMap
                     isSubscriber={isSubscriberActive}
                     unlockedRegions={isSubscriberActive ? (session?.unlocked_regions || []) : []}
@@ -840,147 +755,53 @@ export default function App() {
                 </div>
               </div>
 
-              {/* FAQ Section */}
-              <div className="py-4">
-                <FaqSection />
-              </div>
-
-              {/* Whispers from the Next Region (Newsletter Signup Banner) */}
-              <div className="bg-ghibli-sand rounded-3xl p-8 md:p-12 text-center space-y-6 vintage-shadow">
-                <h3 className="text-2xl font-bold font-serif text-ghibli-green-dark">
-                  Whispers from the Next Region
-                </h3>
-                <p className="text-xs text-ghibli-sage max-w-lg mx-auto leading-relaxed">
-                  Sign up for our free Cultural Newsletter and receive monthly teasers about the upcoming region's Ghibli theme and lore.
-                </p>
-
-                <div className="max-w-md mx-auto bg-white rounded-2xl p-6 border border-ghibli-cream-dark shadow-sm text-left">
-                  {isNewsletterSubscribed ? (
-                    <div className="text-center py-6 space-y-3">
-                      <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto text-emerald-800">
-                        <Check className="w-6 h-6" />
-                      </div>
-                      <h4 className="font-serif font-bold text-base text-ghibli-green-dark">You are already subscribed! 🍃</h4>
-                      <p className="text-xs text-ghibli-sage">We will whisper the secrets of the upcoming region to {session?.email}.</p>
-                    </div>
-                  ) : teaserSent ? (
-                    <div className="text-center py-6 space-y-3">
-                      <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto text-emerald-800">
-                        <Check className="w-6 h-6" />
-                      </div>
-                      <h4 className="font-serif font-bold text-base text-ghibli-green-dark">Your Teaser Scroll is Sealed!</h4>
-                      <p className="text-xs text-ghibli-sage">We will whisper the secrets of the next region to you soon. 🍃</p>
+              {/* Newsletter strip */}
+              <div className="bg-ghibli-sand rounded-3xl p-7 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                <div className="space-y-1 max-w-sm">
+                  <h3 className="text-lg font-bold font-serif text-ghibli-green-dark">Free Monthly Teaser</h3>
+                  <p className="text-xs text-ghibli-sage leading-relaxed">Get a whisper of next month's region straight to your inbox. No spam, ever.</p>
+                </div>
+                <div className="w-full md:w-80 shrink-0">
+                  {isNewsletterSubscribed || teaserSent ? (
+                    <div className="flex items-center gap-2 text-xs text-emerald-800 font-medium bg-white/80 p-3 rounded-xl border border-emerald-200">
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{isNewsletterSubscribed ? `Subscribed! Whispers go to ${session?.email} \u{1F343}` : "You're on the list! \u{1F343}"}</span>
                     </div>
                   ) : (
                     <form onSubmit={async (e) => {
                       e.preventDefault();
                       if (teaserEmail) {
                         const res = await saveNewsletter(teaserName || "Traveler", teaserEmail);
-                        if (res === "already-signed-up") {
-                          alert("You are already signed up! 🍃");
-                        } else {
-                          setTeaserSent(true);
-                        }
+                        if (res === "already-signed-up") { alert("Already signed up! \u{1F343}"); } else { setTeaserSent(true); }
                       }
-                    }} className="space-y-4">
-                      <div>
-                        <label className="text-[11px] font-semibold text-ghibli-sage block mb-1">Your Name</label>
-                        <input
-                          type="text"
-                          placeholder="Chihiro"
-                          value={teaserName}
-                          onChange={(e) => setTeaserName(e.target.value)}
-                          className="w-full p-2.5 rounded-xl border border-ghibli-green bg-[#faf8f5] text-xs focus:ring-1 focus:ring-ghibli-green focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-semibold text-ghibli-sage block mb-1">Email</label>
-                        <input
-                          type="email"
-                          required
-                          placeholder="you@meadow.jp"
-                          value={teaserEmail}
-                          onChange={(e) => setTeaserEmail(e.target.value)}
-                          className="w-full p-2.5 rounded-xl border border-ghibli-green bg-[#faf8f5] text-xs focus:ring-1 focus:ring-ghibli-green focus:outline-none"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className="w-full py-2.5 bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark font-serif font-bold rounded-xl text-xs tracking-wide transition-all shadow-xs"
-                      >
-                        Send Me Teasers
-                      </button>
+                    }} className="flex gap-2">
+                      <input
+                        type="email"
+                        required
+                        placeholder="your@email.com"
+                        value={teaserEmail}
+                        onChange={(e) => setTeaserEmail(e.target.value)}
+                        className="flex-1 px-3 py-2 rounded-xl border border-ghibli-green bg-white text-xs focus:ring-1 focus:ring-ghibli-green focus:outline-none"
+                      />
+                      <button type="submit" className="px-4 py-2 bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark font-serif font-bold rounded-xl text-xs transition-all">Join</button>
                     </form>
                   )}
                 </div>
               </div>
 
-              {/* Footer exactly like Screenshot 2 */}
-              <footer className="bg-ghibli-green-light/40 border-t border-ghibli-green-light rounded-3xl p-8 mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="space-y-3">
-                  <h4 className="font-serif font-bold text-lg text-ghibli-green-dark">Kokoro Letters</h4>
-                  <p className="text-xs text-ghibli-sage leading-relaxed">
-                    A moonlit journey through Japan, one paper lantern at a time. Slow living, delivered to your door.
-                  </p>
+              {/* Footer */}
+              <footer className="text-center text-xs text-ghibli-sage border-t border-ghibli-green-light/40 pt-6 pb-2 space-y-2">
+                <p className="font-serif font-semibold text-ghibli-green-dark text-sm">Kokoro Letters 心</p>
+                <p>A slow-living monthly mail club celebrating the spirit world of Japan.</p>
+                <div className="flex justify-center gap-6 pt-2 font-medium">
+                  <button onClick={() => setActiveTab("journey")} className="hover:text-ghibli-green-dark">Home</button>
+                  <button onClick={() => setActiveTab("subscription")} className="hover:text-ghibli-green-dark">Subscribe</button>
+                  <button onClick={() => setActiveTab("journal")} className="hover:text-ghibli-green-dark">My Journal</button>
+                  {isAdmin && <button onClick={() => setActiveTab("admin")} className="hover:text-ghibli-green-dark">Admin</button>}
                 </div>
-                <div className="space-y-3">
-                  <h4 className="font-serif font-bold text-sm text-ghibli-green-dark">Wander</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-ghibli-sage">
-                    <button onClick={() => setActiveTab("journey")} className="hover:text-ghibli-green-dark text-left">Our Journey</button>
-                    <button onClick={() => setActiveTab("subscription")} className="hover:text-ghibli-green-dark text-left">Subscription</button>
-                    <button onClick={() => setActiveTab("journal")} className="hover:text-ghibli-green-dark text-left">Travel Journal</button>
-                    <button onClick={() => setActiveTab("newsletter")} className="hover:text-ghibli-green-dark text-left">Newsletter</button>
-                    {isAdmin && (
-                      <button onClick={() => setActiveTab("admin")} className="hover:text-ghibli-green-dark text-left font-mono text-[10px] text-ghibli-sage/60 mt-1 col-span-2">Admin Dashboard</button>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <h4 className="font-serif font-bold text-sm text-ghibli-green-dark">Monthly Teasers</h4>
-                  <p className="text-xs text-ghibli-sage mb-2">Whispers of the region to come, delivered to your inbox.</p>
-                  {isNewsletterSubscribed ? (
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-medium bg-white/80 p-2.5 rounded-xl border border-emerald-200">
-                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>You are already subscribed ({session?.email}) 🍃</span>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                    <input
-                      type="email"
-                      value={waitlistEmail}
-                      onChange={(e) => setWaitlistEmail(e.target.value)}
-                      placeholder="you@meadow.jp"
-                      className="bg-white border border-ghibli-green-light rounded-lg px-2.5 py-1 text-xs focus:outline-none flex-1"
-                    />
-                    <button
-                      onClick={async () => {
-                        if (!waitlistEmail.includes("@")) {
-                          alert("Please enter a valid email address.");
-                          return;
-                        }
-                        try {
-                          const res = await saveNewsletter("Traveler", waitlistEmail.trim());
-                          if (res === "already-signed-up") {
-                            alert("You are already signed up! 🍃");
-                          } else if (res === "success") {
-                            alert("You're on the list! 🍃 Whispers of the next region will be sent to your inbox.");
-                            setWaitlistEmail("");
-                          } else {
-                            alert("Could not complete signup. Please try again.");
-                          }
-                        } catch {
-                          alert("Something went wrong. Please try again.");
-                        }
-                      }}
-                      className="bg-ghibli-sand hover:bg-[#eed7b1] px-3 py-1 rounded-lg text-xs font-semibold text-ghibli-green-dark"
-                    >Join</button>
-                  </div>
-                )}
-              </div>
               </footer>
             </motion.div>
           )}
-
           {/* PAGE 2: SUBSCRIPTION TAB */}
           {activeTab === "subscription" && (
             <motion.div
@@ -1195,111 +1016,6 @@ export default function App() {
                     >
                       Edit Address
                     </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Personalized subscriber progress section */}
-              {session?.authenticated && isSubscriberActive && (
-                <div className="bg-[#fcfcf9] rounded-3xl p-6 border border-ghibli-green-light shadow-sm space-y-6 vintage-shadow">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-ghibli-green-light/60 pb-4 gap-4">
-                    <div>
-                      <h3 className="text-xl font-bold font-serif text-ghibli-green-dark">
-                        Your Personal Traveler's Map & Progress
-                      </h3>
-                      <p className="text-xs text-ghibli-sage mt-1">
-                        This map is unique to your subscription history. As the months go by, you'll stamp and unlock your path across the 12 regions of Japan.
-                      </p>
-                    </div>
-                    <div className="bg-[#e2edd3] text-emerald-800 text-xs px-3 py-1.5 rounded-xl font-mono font-bold border border-emerald-200 shrink-0">
-                      🌿 {session.unlocked_regions?.length || 0} of 12 Regions Covered
-                    </div>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs font-semibold text-ghibli-green-dark">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                        Wandering Progress
-                      </span>
-                      <span>{Math.round(((session.unlocked_regions?.length || 0) / 12) * 100)}% Completed</span>
-                    </div>
-                    <div className="h-3.5 bg-stone-100 rounded-full overflow-hidden border border-stone-200 p-0.5">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${((session.unlocked_regions?.length || 1) / 12) * 100}%` }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="h-full bg-gradient-to-r from-[#86ab9a] to-[#527e69] rounded-full shadow-inner"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Render their personalized Subscriber Map of Japan */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pt-2">
-                    <div className="lg:col-span-5 max-w-sm mx-auto w-full">
-                      <div className="text-center font-mono text-[9px] text-[#426151] font-bold mb-3 uppercase tracking-wider bg-emerald-50 p-2 rounded-xl border border-emerald-200">
-                        🔒 Subscriber-Specific Map
-                      </div>
-                      <JapanMap
-                        isSubscriber={true}
-                        unlockedRegions={session.unlocked_regions || []}
-                        activeRegionId={activeRegionId}
-                        onSelectRegion={(id) => {
-                          handleSelectRegion(id);
-                        }}
-                        regionsList={regions}
-                      />
-                    </div>
-
-                    <div className="lg:col-span-7 space-y-4">
-                      <h4 className="text-sm font-bold font-serif text-ghibli-green-dark flex items-center gap-1">
-                        <span>📖</span>
-                        <span>Your Travel Stamp Book</span>
-                      </h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {regions.map((region, idx) => {
-                          const isCovered = (session.unlocked_regions || []).includes(region.region_id);
-                          const meta = REGIONS_METADATA.find(m => m.region_id === region.region_id);
-                          const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
-                          const monthName = meta ? getMonthName(meta.month) : `Month ${idx + 1}`;
-
-                          return (
-                            <div
-                              key={region.region_id}
-                              className={`p-3 rounded-2xl border text-left flex flex-col justify-between h-20 transition-all ${
-                                isCovered
-                                  ? "bg-[#eaf4eb] border-emerald-200 text-emerald-900"
-                                  : monthStatus === "current"
-                                  ? "bg-amber-50/80 border-amber-200 text-amber-900"
-                                  : "bg-stone-50 border-stone-200 text-stone-400"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-[9px] font-mono font-bold text-ghibli-sage">{monthName}</span>
-                                {isCovered ? (
-                                  <span className="text-emerald-700 font-bold">🌱</span>
-                                ) : monthStatus === "current" ? (
-                                  <span className="text-amber-600 font-bold">✨</span>
-                                ) : (
-                                  <span className="text-stone-300">🔒</span>
-                                )}
-                              </div>
-                              <div className="font-serif font-bold text-xs truncate">{region.region_name}</div>
-                              <div className="text-[9px] font-mono">
-                                {isCovered 
-                                  ? "Stamped & Shipped" 
-                                  : monthStatus === "current" 
-                                  ? "Current Month" 
-                                  : monthStatus === "past" 
-                                  ? "Past Archive" 
-                                  : "Coming Soon"}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -1997,136 +1713,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* PAGE 4: NEWSLETTER TAB */}
-          {activeTab === "newsletter" && (
-            <motion.div
-              key="newsletter-page"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-12"
-            >
-              <div className="bg-ghibli-green text-ghibli-green-dark rounded-3xl p-8 text-center space-y-2 relative overflow-hidden shadow-xs">
-                <h2 className="text-2xl md:text-3xl font-bold font-serif tracking-tight">
-                  The Cultural Newsletter
-                </h2>
-                <p className="text-ghibli-sage text-xs max-w-lg mx-auto">
-                  Each month, a whisper of the region to come &mdash; lore snippets, Ghibli inspiration, and glimpses of the kit drifting toward your door. Wander with us before you journey.
-                </p>
-              </div>
-
-              {/* Newsletter Join Box exactly like Screenshot 6 */}
-              <div className="max-w-md mx-auto bg-ghibli-cream border border-ghibli-cream-dark rounded-2xl p-6 vintage-shadow">
-                <div className="text-center space-y-1 mb-6">
-                  <h3 className="text-lg font-bold font-serif text-ghibli-green-dark">Join the Journey</h3>
-                  <p className="text-xs text-ghibli-sage">Free monthly teasers, straight from the meadow.</p>
-                </div>
-
-                {isNewsletterSubscribed ? (
-                  <div className="text-center py-6 space-y-3">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto text-emerald-800">
-                      <Check className="w-6 h-6" />
-                    </div>
-                    <h4 className="font-serif font-bold text-base text-ghibli-green-dark">You are already subscribed! 🍃</h4>
-                    <p className="text-xs text-ghibli-sage">Your scroll is sealed with {session?.email}. You will receive every monthly whisper and teaser directly in your inbox.</p>
-                  </div>
-                ) : newsletterSent ? (
-                  <div className="text-center py-6 space-y-3">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto text-emerald-800">
-                      <Check className="w-6 h-6" />
-                    </div>
-                    <h4 className="font-serif font-bold text-base text-ghibli-green-dark">Your Scroll has been Sealed!</h4>
-                    <p className="text-xs text-ghibli-sage">Thank you for wandering with us. Check your mailbox for whispers. 🍃</p>
-                  </div>
-                ) : (
-                  <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (newsletterEmail) {
-                      const res = await saveNewsletter(newsletterName, newsletterEmail);
-                      if (res === "already-signed-up") {
-                        alert("You are already signed up! 🍃");
-                      } else {
-                        setNewsletterSent(true);
-                      }
-                    }
-                  }} className="space-y-4 text-left">
-                    <div>
-                      <label className="text-[11px] font-semibold text-ghibli-sage block mb-1">Traveler Name</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Your name"
-                        value={newsletterName}
-                        onChange={(e) => setNewsletterName(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border border-ghibli-green bg-white text-xs focus:ring-1 focus:ring-ghibli-green focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-ghibli-sage block mb-1">Email</label>
-                      <input
-                        type="email"
-                        required
-                        placeholder="you@meadow.jp"
-                        value={newsletterEmail}
-                        onChange={(e) => setNewsletterEmail(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border border-ghibli-green bg-white text-xs focus:ring-1 focus:ring-ghibli-green focus:outline-none"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark font-serif font-bold rounded-xl text-xs tracking-wide transition-all shadow-xs"
-                    >
-                      Seal & Send
-                    </button>
-                  </form>
-                )}
-              </div>
-
-              {/* Past Whispers List */}
-              <div className="space-y-6">
-                <div className="text-center space-y-1">
-                  <h3 className="text-xl font-bold font-serif text-ghibli-green-dark">Past Whispers</h3>
-                  <p className="text-xs text-ghibli-sage">Browse the teasers of months gone by &mdash; each a doorway into a region's quiet magic.</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[
-                    {
-                      date: "Jul 1, 2026 3:30 pm",
-                      title: "Kansai (Spirited Away Theme)",
-                      body: "In the heart of Kansai, where lantern light pools in ancient stone streets, a girl once traded her name for the chance to work in a bathhouse for the gods. Every temple here holds a doorway, and every doorway holds a choice."
-                    },
-                    {
-                      date: "Jun 1, 2026 1:15 pm",
-                      title: "Tohoku (Princess Mononoke Theme)",
-                      body: "Along the Sea of Japan's brooding coast, deep within the ancient moss-covered cedar forests, a wolf god and a forest princess stand guard against the advance of iron towers. Listen closely to the wind to hear the Kodama rattle."
-                    },
-                    {
-                      date: "May 1, 2026 10:45 am",
-                      title: "Chubu (The Wind Rises Theme)",
-                      body: "High in the alpine passes of Chubu, where the wind carries the scent of pine and machine oil, a young engineer looked up at his beloved plane and understood that the beauty of flight was worth a lifetime of dreaming."
-                    }
-                  ].map((teaser, i) => (
-                    <div key={i} className="bg-white border border-ghibli-green-light rounded-2xl p-6 space-y-3 shadow-xs flex flex-col justify-between text-left vintage-shadow">
-                      <div className="space-y-2">
-                        <span className="text-[10px] text-ghibli-sage font-mono block">{teaser.date}</span>
-                        <h4 className="font-serif font-bold text-sm text-[#1e2d24]">{teaser.title}</h4>
-                        <p className="text-xs text-ghibli-sage leading-relaxed">{teaser.body}</p>
-                      </div>
-                      <button
-                        onClick={() => alert(`Opening whisper details for ${teaser.title} in simulation!`)}
-                        className="text-left text-xs font-semibold text-emerald-700 hover:text-emerald-950 flex items-center gap-1 mt-2"
-                      >
-                        <span>Read the whole whisper</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
 
           {activeTab === "admin" && isAdmin && (
             <motion.div
@@ -2137,153 +1723,6 @@ export default function App() {
               transition={{ duration: 0.3 }}
             >
               <AdminDashboard />
-            </motion.div>
-          )}
-        </AnimatePresence>
-        
-        {/* Traveler's Ticket Modal */}
-        <AnimatePresence>
-          {ticketModalOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-            >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                className="bg-[#fbf9f4] w-full max-w-md rounded-2xl shadow-xl overflow-hidden relative border border-[#e7d8b5]"
-              >
-                {/* Vintage Border overlay (pseudo-element equivalent via absolute div) */}
-                <div className="absolute inset-2 border-[1.5px] border-[#dcd3b9] rounded-xl pointer-events-none" />
-                
-                <div className="p-8 relative z-10">
-                  <button 
-                    onClick={() => setTicketModalOpen(false)}
-                    className="absolute top-6 right-6 text-stone-400 hover:text-stone-700 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                  
-                  <h2 className="text-3xl font-serif font-bold text-[#3d4c41] mb-6 tracking-tight">
-                    Traveler's Ticket
-                  </h2>
-                  
-                  <div className="space-y-6">
-                    {/* Departing for */}
-                    <div className="bg-[#e4ebd8] p-4 rounded-xl border border-[#cbd5c1]">
-                      <p className="text-[11px] font-medium text-[#7a8a7a] mb-1 uppercase tracking-wider">Departing for</p>
-                      <p className="text-2xl font-serif font-bold text-[#3d4c41]">
-                        {regions.find(r => r.region_id === ticketRegion)?.region_name || "Unknown Region"}
-                      </p>
-                    </div>
-
-                    {/* Country */}
-                    <div>
-                      <p className="text-sm font-medium text-[#4a554a] mb-3">Stamp your country of residence</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          onClick={() => setTicketCountry("India")}
-                          className={`py-3 px-4 rounded-xl border-2 font-serif font-bold text-lg transition-all ${
-                            ticketCountry === "India"
-                              ? "border-[#a3b89e] text-[#86a07f]"
-                              : "border-[#e2e8e0] text-[#a0aab0] bg-[#f7f9f6] hover:border-[#cbd5c1]"
-                          }`}
-                        >
-                          India
-                        </button>
-                        <button
-                          onClick={() => setTicketCountry("International")}
-                          className={`py-3 px-4 rounded-xl border-2 font-serif font-bold text-lg transition-all ${
-                            ticketCountry === "International"
-                              ? "border-[#a3b89e] text-[#86a07f]"
-                              : "border-[#e2e8e0] text-[#a0aab0] bg-[#f7f9f6] hover:border-[#cbd5c1]"
-                          }`}
-                        >
-                          International
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Plan Tier */}
-                    <div>
-                      <p className="text-sm font-medium text-[#4a554a] mb-2">Choose your plan tier</p>
-                      <div className="relative">
-                        <select
-                          value={ticketPlan}
-                          onChange={(e) => setTicketPlan(e.target.value)}
-                          className="w-full appearance-none bg-[#eef1e6] border border-[#d6e0ce] text-[#6b7b6b] py-3 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#a3b89e] focus:border-transparent font-medium"
-                        >
-                          <option value="" disabled>Select a plan…</option>
-                          <option value="Standard">Standard</option>
-                          <option value="Deluxe">Deluxe</option>
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#8fa189]">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <button 
-                    onClick={async () => {
-                      const email = session?.email || "traveler@kokoro.com";
-                      setTicketModalOpen(false);
-                      setSimulatingWebhook(true);
-                      
-                      const selectedPlan = ticketPlan || "Standard";
-                      const fullTier = `${selectedPlan} (${ticketCountry})`;
-                      
-                      try {
-                        const res = await fetch("/api/checkout", {
-                          method: "POST",
-                          headers: { 
-                            "Content-Type": "application/json"
-                          },
-                          body: JSON.stringify({
-                            email,
-                            shipping_address: "108 Lotus Path, Block C, New Delhi 110001",
-                            plan_tier: fullTier,
-                            region_id: ticketRegion
-                          })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                          saveOrder({ 
-                            email: email, 
-                            shipping_address: '108 Lotus Path, Block C, New Delhi 110001', 
-                            plan_tier: fullTier, 
-                            destination: ticketCountry,
-                            gateway: 'ticket-modal' 
-                          }).catch(function(e) { console.warn(e); });
-                          await fetchSession();
-                          if (ticketRegion) {
-                            setActiveRegionId(ticketRegion);
-                            setActiveTab("journal");
-                            triggerUnlockAnimation(ticketRegion);
-                          }
-                        } else {
-                          alert(data.error || "Failed to complete checkout.");
-                        }
-                      } catch (err: any) {
-                        console.error("Checkout error from modal:", err);
-                      } finally {
-                        setSimulatingWebhook(false);
-                      }
-                    }}
-                    disabled={!ticketPlan || simulatingWebhook}
-                    className="w-full mt-8 bg-[#a8c1a6] hover:bg-[#97b395] disabled:bg-[#d1ddd0] disabled:cursor-not-allowed text-[#2b3a2f] font-serif font-bold text-lg py-4 rounded-full shadow-sm transition-all border border-[#96af94] flex items-center justify-center gap-2"
-                  >
-                    {simulatingWebhook ? (
-                      <span>Unlocking Journey...</span>
-                    ) : (
-                      <span>Seal & Proceed to Checkout</span>
-                    )}
-                  </button>
-                </div>
-              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
