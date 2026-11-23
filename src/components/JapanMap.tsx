@@ -143,56 +143,52 @@ export default function JapanMap({
           className="absolute inset-0 w-full h-full pointer-events-none rounded-2xl z-10"
         >
           <defs>
-            {/* Luminous glowing filter for active / hovered partitions */}
-            <filter id="partition-glow-amber" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="2.2" result="blur1" />
-              <feGaussianBlur stdDeviation="4.5" result="blur2" />
+            {/* Soft, authentic antique gold & emerald watercolor glow filters for hovered partitions */}
+            <filter id="partition-glow-amber" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="1.5" result="blur" />
               <feMerge>
-                <feMergeNode in="blur2" />
-                <feMergeNode in="blur1" />
+                <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
 
-            <filter id="partition-glow-emerald" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="2.2" result="blur1" />
-              <feGaussianBlur stdDeviation="4.5" result="blur2" />
+            <filter id="partition-glow-emerald" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="1.5" result="blur" />
               <feMerge>
-                <feMergeNode in="blur2" />
-                <feMergeNode in="blur1" />
+                <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
 
             <radialGradient id="radial-glow-amber" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.65" />
-              <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.30" />
-              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+              <stop offset="0%" stopColor="#d97706" stopOpacity="0.45" />
+              <stop offset="60%" stopColor="#d97706" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="#d97706" stopOpacity="0" />
             </radialGradient>
 
             <radialGradient id="radial-glow-emerald" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.65" />
-              <stop offset="50%" stopColor="#10b981" stopOpacity="0.30" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+              <stop offset="0%" stopColor="#547365" stopOpacity="0.45" />
+              <stop offset="60%" stopColor="#547365" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="#547365" stopOpacity="0" />
             </radialGradient>
           </defs>
 
-          {/* 12 Territorial Region Partitions */}
+          {/* 12 Territorial Region Partitions: ONLY glows when that specific region is actively hovered */}
           {REGIONS_MAP_PINS.map((pin) => {
-            const isHoveredOrActive = hoveredRegion === pin.id || activeRegionId === pin.id;
+            const isHovered = hoveredRegion === pin.id;
             const isUnlocked = (unlockedRegions || []).includes(pin.id);
             const partitionPath = REGION_PARTITION_PATHS[pin.id];
             if (!partitionPath) return null;
 
             return (
               <g key={`partition-glow-${pin.id}`}>
-                {/* Luminous radiant halo core at region centroid */}
-                {isHoveredOrActive && (
+                {/* Luminous gentle halo at region centroid when actively hovered */}
+                {isHovered && (
                   <ellipse
                     cx={pin.x}
                     cy={pin.y}
-                    rx="8.5"
-                    ry="6.5"
+                    rx="8"
+                    ry="6"
                     fill={isUnlocked ? "url(#radial-glow-emerald)" : "url(#radial-glow-amber)"}
                     className="animate-pulse pointer-events-none"
                   />
@@ -202,23 +198,23 @@ export default function JapanMap({
                 <path
                   d={partitionPath}
                   fill={
-                    isHoveredOrActive
+                    isHovered
                       ? isUnlocked
-                        ? "rgba(16, 185, 129, 0.32)"
-                        : "rgba(245, 158, 11, 0.35)"
+                        ? "rgba(84, 115, 101, 0.22)"
+                        : "rgba(217, 119, 6, 0.20)"
                       : "rgba(0, 0, 0, 0.001)"
                   }
                   stroke={
-                    isHoveredOrActive
+                    isHovered
                       ? isUnlocked
-                        ? "#10b981"
-                        : "#f59e0b"
-                      : "rgba(180, 150, 110, 0.25)"
+                        ? "#3d5a49"
+                        : "#b45309"
+                      : "rgba(180, 150, 110, 0.2)"
                   }
-                  strokeWidth={isHoveredOrActive ? "1.8" : "0.6"}
-                  strokeDasharray={isHoveredOrActive ? "none" : "2,2"}
+                  strokeWidth={isHovered ? "1.5" : "0.5"}
+                  strokeDasharray={isHovered ? "none" : "2,2"}
                   filter={
-                    isHoveredOrActive
+                    isHovered
                       ? isUnlocked
                         ? "url(#partition-glow-emerald)"
                         : "url(#partition-glow-amber)"
@@ -333,41 +329,41 @@ export default function JapanMap({
               >
                 {/* Pointer Triangle (if above pin, points down) */}
                 {!isTopArea && (
-                  <div className={`order-2 w-0 h-0 border-l-[9px] border-r-[9px] border-t-[9px] border-transparent border-t-[#0f1b14] drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)] relative -top-[1px] ${pointerAlignment}`}></div>
+                  <div className={`order-2 w-0 h-0 border-l-[9px] border-r-[9px] border-t-[9px] border-transparent border-t-[#fcfaf3] drop-shadow-[0_4px_8px_rgba(27,46,36,0.18)] relative -top-[1px] ${pointerAlignment}`}></div>
                 )}
 
-                {/* Tooltip Card Body: High-Contrast Obsidian-Forest Lacquer with Radiant Gold Trim */}
+                {/* Tooltip Card Body: Ghibli Warm Japanese Parchment Theme (Matching the website palette) */}
                 <div 
                   onMouseEnter={handleMouseEnterTooltip}
                   onMouseLeave={handleMouseLeaveTooltip}
-                  className="order-1 bg-gradient-to-b from-[#18281f] to-[#0f1b14] border-2 border-amber-400 shadow-[0_20px_50px_rgba(0,0,0,0.75),0_0_24px_rgba(245,158,11,0.35)] ring-1 ring-amber-300/40 rounded-2xl p-4 max-w-[245px] sm:max-w-[265px] w-[235px] sm:w-[255px] text-center flex flex-col items-center relative overflow-hidden pointer-events-auto"
+                  className="order-1 bg-[#fcfaf3] border-2 border-[#547365]/70 ring-2 ring-[#eedba5] shadow-[0_18px_40px_rgba(27,46,36,0.22),0_4px_12px_rgba(0,0,0,0.08)] rounded-2xl p-4 sm:p-5 max-w-[285px] sm:max-w-[310px] w-[280px] sm:w-[300px] text-center flex flex-col items-center relative overflow-hidden pointer-events-auto"
                 >
-                  {/* Glowing Top Amber Accent Line */}
-                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500" />
+                  {/* Gentle Ghibli Sage & Bamboo Top Trim */}
+                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#9cbfae] via-[#eedba5] to-[#9cbfae]" />
 
-                  {/* Header with Radiant Glowing Lantern and Title */}
-                  <div className="flex items-center justify-center gap-2 w-full mb-1 mt-0.5">
-                    <div className="w-6 h-6 shrink-0 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]">
+                  {/* Header with Warm Japanese Lantern and Title */}
+                  <div className="flex items-center justify-center gap-2 w-full mb-1.5 mt-0.5">
+                    <div className="w-5 h-5 shrink-0 drop-shadow-xs">
                       <svg viewBox="0 0 20 20" className="w-full h-full">
                         <g>
-                          <rect x="6" y="0" width="8" height="2" fill="#78350f" />
-                          <rect x="4" y="2" width="12" height="2" fill="#b45309" />
-                          <rect x="4" y="4" width="12" height="12" fill={isFuture ? "#64748b" : isPast ? "#92400e" : "#f59e0b"} className={isCurrent ? "animate-pulse" : ""} />
-                          <rect x="6" y="6" width="8" height="8" fill={isFuture ? "#94a3b8" : isPast ? "#d97706" : "#fde047"} />
-                          <rect x="8" y="8" width="4" height="4" fill={isFuture ? "#cbd5e1" : isPast ? "#fef3c7" : "#ffffff"} />
-                          <rect x="4" y="16" width="12" height="2" fill="#b45309" />
-                          <rect x="6" y="18" width="8" height="2" fill="#78350f" />
+                          <rect x="6" y="0" width="8" height="2" fill="#451a03" />
+                          <rect x="4" y="2" width="12" height="2" fill="#78350f" />
+                          <rect x="4" y="4" width="12" height="12" fill={isFuture ? "#9ca3af" : isPast ? "#b45309" : "#d97706"} className={isCurrent ? "animate-pulse" : ""} />
+                          <rect x="6" y="6" width="8" height="8" fill={isFuture ? "#d1d5db" : isPast ? "#d97706" : "#fcd34d"} />
+                          <rect x="8" y="8" width="4" height="4" fill={isFuture ? "#f3f4f6" : isPast ? "#fef3c7" : "#fffbeb"} />
+                          <rect x="4" y="16" width="12" height="2" fill="#78350f" />
+                          <rect x="6" y="18" width="8" height="2" fill="#451a03" />
                         </g>
                       </svg>
                     </div>
 
-                    <h4 className="font-serif font-bold text-[#fffbeb] text-base leading-tight tracking-wide drop-shadow-sm">
+                    <h4 className="font-serif font-bold text-[#1b2e24] text-base leading-tight tracking-wide">
                       {activeHoveredPin.name}
                     </h4>
                   </div>
 
                   {/* Subtext */}
-                  <p className="text-[11px] text-stone-300 font-sans font-medium leading-tight mb-2.5 w-full text-center">
+                  <p className="text-xs text-[#547365] font-sans font-medium leading-relaxed mb-2.5 w-full text-center">
                     {isUnlocked 
                       ? "Explore travel letters & lore" 
                       : isCurrent
@@ -377,36 +373,36 @@ export default function JapanMap({
                       : `Scheduled for ${monthName}`}
                   </p>
 
-                  {/* Shipping logistics status banner */}
+                  {/* Shipping logistics status banner: Generous layout without any text cut-off */}
                   {isCurrent && (
-                    <div className="mb-2.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 text-stone-950 text-[10px] font-bold font-mono shadow-md flex items-center justify-center gap-1.5 w-full animate-pulse">
-                      <Truck className="w-3.5 h-3.5 text-stone-950 shrink-0" />
-                      <span className="truncate">{monthName}: Active Monthly Dispatch</span>
+                    <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-amber-100/90 border border-amber-300 text-amber-950 text-xs font-bold font-sans shadow-2xs flex items-center justify-center gap-2 w-full text-center animate-pulse">
+                      <Truck className="w-4 h-4 text-amber-800 shrink-0" />
+                      <span>{monthName}: Active Monthly Dispatch</span>
                     </div>
                   )}
                   {isPast && (
-                    <div className="mb-2.5 px-2.5 py-1.5 rounded-xl bg-[#1d2f24] border border-amber-400/30 text-amber-200 text-[10px] font-bold font-mono flex items-center justify-center gap-1.5 w-full">
-                      <Archive className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
-                      <span className="truncate">{monthName}: Past Archive (Kit order)</span>
+                    <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-[#f4efe4] border border-[#dcd3b9] text-[#547365] text-xs font-medium font-sans flex items-center justify-center gap-2 w-full text-center">
+                      <Archive className="w-4 h-4 text-[#8c6b45] shrink-0" />
+                      <span>{monthName}: Past Archive (Kit order)</span>
                     </div>
                   )}
                   {isFuture && (
-                    <div className="mb-2.5 px-2.5 py-1.5 rounded-xl bg-[#17251d] border border-stone-600/50 text-stone-300 text-[10px] font-bold font-mono flex items-center justify-center gap-1.5 w-full">
-                      <Clock className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                      <span className="truncate">{monthName}: Coming Soon</span>
+                    <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 text-xs font-medium font-sans flex items-center justify-center gap-2 w-full text-center">
+                      <Clock className="w-4 h-4 text-stone-400 shrink-0" />
+                      <span>{monthName}: Coming Soon</span>
                     </div>
                   )}
 
                   {/* State-Awareness Banner */}
-                  <div className={`text-[9px] font-mono font-bold tracking-tight py-1 px-1.5 rounded-lg mb-2.5 w-full text-center leading-normal border ${
+                  <div className={`text-[10px] font-mono font-semibold py-1 px-2 rounded-lg mb-3 w-full text-center leading-normal border ${
                     isUnlocked
-                      ? "text-emerald-300 bg-[#0d2217] border-emerald-500/40"
+                      ? "text-emerald-900 bg-emerald-50 border-emerald-200"
                       : isCurrent
-                      ? "text-amber-200 bg-[#251e10] border-amber-500/40"
-                      : "text-stone-300 bg-[#16221a] border-stone-700/60"
+                      ? "text-amber-900 bg-amber-50/80 border-amber-200"
+                      : "text-stone-700 bg-stone-100 border-stone-200"
                   }`}>
                     {isUnlocked 
-                      ? `${activeHoveredPin.name} | Unlocked` 
+                      ? `${activeHoveredPin.name} | Unlocked in Journal` 
                       : isCurrent 
                       ? `${activeHoveredPin.name} | Subscribe to Unlock` 
                       : isPast
@@ -417,14 +413,14 @@ export default function JapanMap({
                   {/* Action Button */}
                   <button 
                     onClick={() => onSelectRegion(activeHoveredPin.id)}
-                    className={`text-xs font-serif font-bold py-2 px-4 rounded-xl w-full shadow-lg transition-all whitespace-nowrap cursor-pointer hover:scale-[1.02] active:scale-95 ${
+                    className={`text-xs font-serif font-bold py-2 px-4 rounded-xl w-full shadow-2xs transition-all cursor-pointer hover:scale-[1.01] active:scale-95 ${
                       isUnlocked
-                        ? "bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 text-stone-950 shadow-emerald-950/40"
+                        ? "bg-[#527e69] hover:bg-[#3d604f] text-white"
                         : isCurrent
-                        ? "bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-200 text-stone-950 shadow-amber-950/50"
+                        ? "bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold shadow-amber-500/20"
                         : isPast
-                        ? "bg-[#283b30] hover:bg-[#32493c] text-amber-100 border border-amber-500/30 shadow-black/40"
-                        : "bg-[#1f2d25] hover:bg-[#28392f] text-stone-300 border border-stone-600/50 shadow-black/40"
+                        ? "bg-[#e8decb] hover:bg-[#ded1bc] text-[#3d5a49] border border-[#dcd3b9]"
+                        : "bg-stone-200 hover:bg-stone-300 text-stone-600"
                     }`}
                   >
                     {isUnlocked 
@@ -439,7 +435,7 @@ export default function JapanMap({
 
                 {/* Pointer Triangle (if below pin, points up) */}
                 {isTopArea && (
-                  <div className={`order-0 w-0 h-0 border-l-[9px] border-r-[9px] border-b-[9px] border-transparent border-b-[#18281f] drop-shadow-[0_-4px_6px_rgba(0,0,0,0.6)] relative -bottom-[1px] ${pointerAlignment}`}></div>
+                  <div className={`order-0 w-0 h-0 border-l-[9px] border-r-[9px] border-b-[9px] border-transparent border-b-[#fcfaf3] drop-shadow-[0_-4px_8px_rgba(27,46,36,0.18)] relative -bottom-[1px] ${pointerAlignment}`}></div>
                 )}
               </motion.div>
             );
