@@ -7,7 +7,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   MapPin, Lock, Unlock, Clock, Truck, Sparkles, Archive, 
-  ChevronLeft, ChevronRight, Compass
+  ChevronLeft, ChevronRight, Compass, X
 } from "lucide-react";
 import { REGIONS_METADATA, getRegionMonthStatus, getMonthName, getCurrentMonthNumber } from "../data/lore.ts";
 import japanMapImg from "../assets/japan_parchment_map.jpg";
@@ -17,7 +17,7 @@ interface JapanMapProps {
   unlockedRegions: string[];
   activeRegionId: string | null;
   justUnlockedRegionId?: string | null;
-  onSelectRegion: (id: string) => void;
+  onSelectRegion: (id: string, navigate?: boolean) => void;
   regionsList: Array<{ region_id: string; region_name: string }>;
 }
 
@@ -65,11 +65,40 @@ export default function JapanMap({
   const currentCalMonth = getCurrentMonthNumber();
   const [trackerIndex, setTrackerIndex] = useState(() => Math.max(0, currentCalMonth - 1));
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
+  const [pinnedRegion, setPinnedRegion] = useState<string | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     return () => {
       if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
+  }, []);
+
+  // Dismiss pinned popup on Escape or clicking outside the map container
+  useEffect(() => {
+    const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        mapContainerRef.current && 
+        !mapContainerRef.current.contains(event.target as Node)
+      ) {
+        setPinnedRegion(null);
+        setHoveredRegion(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPinnedRegion(null);
+        setHoveredRegion(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDownOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDownOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
@@ -85,7 +114,7 @@ export default function JapanMap({
     if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
     closeTimeoutRef.current = setTimeout(() => {
       setHoveredRegion(null);
-    }, 350);
+    }, 250);
   };
 
   const handleMouseEnterTooltip = () => {
@@ -99,16 +128,23 @@ export default function JapanMap({
     if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
     closeTimeoutRef.current = setTimeout(() => {
       setHoveredRegion(null);
-    }, 350);
+    }, 250);
   };
 
-  // Active hovered pin object
-  const activeHoveredPin = hoveredRegion 
-    ? REGIONS_MAP_PINS.find(p => p.id === hoveredRegion)
+  const handlePinClick = (id: string) => {
+    setPinnedRegion(id);
+    setHoveredRegion(id);
+    onSelectRegion(id, false);
+  };
+
+  // Active region to display: either currently hovered, or pinned by user click
+  const activeDisplayRegionId = hoveredRegion || pinnedRegion;
+  const activeDisplayPin = activeDisplayRegionId 
+    ? REGIONS_MAP_PINS.find(p => p.id === activeDisplayRegionId)
     : null;
 
   return (
-    <div id="interactive-japan-map" className="w-full space-y-4">
+    <div id="interactive-japan-map" ref={mapContainerRef} className="w-full space-y-4">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-stone-200/80 pb-3">
         <div>
@@ -177,9 +213,11 @@ export default function JapanMap({
             </radialGradient>
           </defs>
 
-          {/* 12 Territorial Region Partitions: ONLY glows when that specific region is actively hovered */}
+          {/* 12 Territorial Region Partitions: Glows when hovered or pinned */}
           {REGIONS_MAP_PINS.map((pin) => {
             const isHovered = hoveredRegion === pin.id;
+            const isPinned = !hoveredRegion && pinnedRegion === pin.id;
+            const isGlowing = isHovered || isPinned;
             const isUnlocked = (unlockedRegions || []).includes(pin.id);
             const partitionPath = REGION_PARTITION_PATHS[pin.id];
             if (!partitionPath) return null;
@@ -190,23 +228,23 @@ export default function JapanMap({
                 <path
                   d={partitionPath}
                   fill={
-                    isHovered
+                    isGlowing
                       ? isUnlocked
                         ? "rgba(84, 115, 101, 0.22)"
                         : "rgba(217, 119, 6, 0.20)"
                       : "rgba(0, 0, 0, 0.001)"
                   }
                   stroke={
-                    isHovered
+                    isGlowing
                       ? isUnlocked
                         ? "#3d5a49"
                         : "#b45309"
                       : "rgba(180, 150, 110, 0.2)"
                   }
-                  strokeWidth={isHovered ? "1.6" : "0.5"}
-                  strokeDasharray={isHovered ? "none" : "2,2"}
+                  strokeWidth={isGlowing ? "1.6" : "0.5"}
+                  strokeDasharray={isGlowing ? "none" : "2,2"}
                   filter={
-                    isHovered
+                    isGlowing
                       ? isUnlocked
                         ? "url(#partition-glow-emerald)"
                         : "url(#partition-glow-amber)"
@@ -215,10 +253,7 @@ export default function JapanMap({
                   className="transition-all duration-200 pointer-events-auto cursor-pointer"
                   onMouseEnter={() => handleMouseEnterPin(pin.id)}
                   onMouseLeave={handleMouseLeavePin}
-                  onClick={() => {
-                    onSelectRegion(pin.id);
-                    setHoveredRegion(pin.id);
-                  }}
+                  onClick={() => handlePinClick(pin.id)}
                   aria-label={`${pin.name} territory`}
                 />
               </g>
@@ -229,7 +264,7 @@ export default function JapanMap({
         {/* 12 Interactive Region Pins */}
         {REGIONS_MAP_PINS.map((pin) => {
           const isUnlocked = (unlockedRegions || []).includes(pin.id);
-          const isActive = activeRegionId === pin.id;
+          const isActive = activeRegionId === pin.id || pinnedRegion === pin.id;
           const isHovered = hoveredRegion === pin.id;
           const meta = REGIONS_METADATA.find(m => m.region_id === pin.id);
           const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
@@ -243,10 +278,7 @@ export default function JapanMap({
               className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
             >
               <button
-                onClick={() => {
-                  onSelectRegion(pin.id);
-                  setHoveredRegion(pin.id);
-                }}
+                onClick={() => handlePinClick(pin.id)}
                 onMouseEnter={() => handleMouseEnterPin(pin.id)}
                 onMouseLeave={handleMouseLeavePin}
                 className={`group relative flex flex-col items-center cursor-pointer transition-transform duration-200 focus:outline-none ${
@@ -255,14 +287,14 @@ export default function JapanMap({
                 aria-label={`Select ${pin.name}`}
               >
                 {/* Active/Current Pulsing Aura */}
-                {(isActive || (isCurrent && !hoveredRegion)) && (
+                {(isActive || (isCurrent && !hoveredRegion && !pinnedRegion)) && (
                   <span className={`absolute -inset-1 sm:-inset-1.5 rounded-full animate-ping opacity-60 ${
                     isUnlocked ? "bg-emerald-400" : isCurrent ? "bg-amber-400" : "bg-stone-400"
                   }`} />
                 )}
 
-                {/* Uniform, consistent luminous beacon aura when hovered (identical size on all 12 regions) */}
-                {isHovered && (
+                {/* Uniform, consistent luminous beacon aura when hovered or pinned (identical size on all 12 regions) */}
+                {(isHovered || pinnedRegion === pin.id) && (
                   <span className={`absolute -inset-1.5 sm:-inset-2 rounded-full border-2 ${
                     isUnlocked ? "border-emerald-500 bg-emerald-500/20" : "border-amber-400 bg-amber-400/25"
                   } animate-pulse pointer-events-none`} />
@@ -287,11 +319,11 @@ export default function JapanMap({
           );
         })}
 
-        {/* Classic Hover Tooltip Popup Card */}
+        {/* Hover / Pinned Tooltip Popup Card */}
         <AnimatePresence>
-          {activeHoveredPin && (() => {
-            const isUnlocked = (unlockedRegions || []).includes(activeHoveredPin.id);
-            const meta = REGIONS_METADATA.find(m => m.region_id === activeHoveredPin.id);
+          {activeDisplayPin && (() => {
+            const isUnlocked = (unlockedRegions || []).includes(activeDisplayPin.id);
+            const meta = REGIONS_METADATA.find(m => m.region_id === activeDisplayPin.id);
             const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
             const monthName = meta ? getMonthName(meta.month) : "";
             const isPast = monthStatus === "past";
@@ -300,9 +332,9 @@ export default function JapanMap({
 
             // Pins in the northern/upper half (Hokkaido, Tohoku) show popup BELOW the pin (isTopArea = true)
             // Pins in the southern/central half show popup ABOVE the pin (isTopArea = false)
-            const isTopArea = activeHoveredPin.y < 48;
-            const isNearLeft = activeHoveredPin.x < 24;
-            const isNearRight = activeHoveredPin.x > 76;
+            const isTopArea = activeDisplayPin.y < 48;
+            const isNearLeft = activeDisplayPin.x < 24;
+            const isNearRight = activeDisplayPin.x > 76;
 
             const pointerAlignment = isNearLeft
               ? "self-start ml-8"
@@ -312,11 +344,11 @@ export default function JapanMap({
 
             return (
               <div
-                key={`tooltip-anchor-${activeHoveredPin.id}`}
+                key={`tooltip-anchor-${activeDisplayPin.id}`}
                 className="absolute z-50 pointer-events-none"
                 style={{ 
-                  left: `${activeHoveredPin.x}%`,
-                  top: `${activeHoveredPin.y}%`,
+                  left: `${activeDisplayPin.x}%`,
+                  top: `${activeDisplayPin.y}%`,
                   transform: isTopArea 
                     ? (isNearLeft ? "translate(-15%, 16px)" : isNearRight ? "translate(-85%, 16px)" : "translate(-50%, 16px)")
                     : (isNearLeft ? "translate(-15%, -100%)" : isNearRight ? "translate(-85%, -100%)" : "translate(-50%, -100%)"),
@@ -346,8 +378,23 @@ export default function JapanMap({
                     {/* Gentle Ghibli Sage & Bamboo Top Trim */}
                     <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#9cbfae] via-[#eedba5] to-[#9cbfae]" />
 
+                    {/* Quick Close Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPinnedRegion(null);
+                        setHoveredRegion(null);
+                      }}
+                      className="absolute top-2.5 right-2.5 p-1 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 transition-colors cursor-pointer z-10"
+                      aria-label="Close preview"
+                      title="Close"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+
                     {/* Header with Warm Japanese Lantern and Title */}
-                    <div className="flex items-center justify-center gap-2 w-full mb-1.5 mt-0.5">
+                    <div className="flex items-center justify-center gap-2 w-full mb-1.5 mt-0.5 px-3">
                       <div className="w-5 h-5 shrink-0 drop-shadow-xs">
                         <svg viewBox="0 0 20 20" className="w-full h-full">
                           <g>
@@ -363,7 +410,7 @@ export default function JapanMap({
                       </div>
 
                       <h4 className="font-serif font-bold text-[#1b2e24] text-base leading-tight tracking-wide">
-                        {activeHoveredPin.name}
+                        {activeDisplayPin.name}
                       </h4>
                     </div>
 
@@ -407,17 +454,17 @@ export default function JapanMap({
                         : "text-stone-700 bg-stone-100 border-stone-200"
                     }`}>
                       {isUnlocked 
-                        ? `${activeHoveredPin.name} | Unlocked in Journal` 
+                        ? `${activeDisplayPin.name} | Unlocked in Journal` 
                         : isCurrent 
-                        ? `${activeHoveredPin.name} | Subscribe to Unlock` 
+                        ? `${activeDisplayPin.name} | Subscribe to Unlock` 
                         : isPast
-                        ? `${activeHoveredPin.name} | Archived Dispatch (Locked)`
-                        : `${activeHoveredPin.name} | Coming Soon (Locked)`}
+                        ? `${activeDisplayPin.name} | Archived Dispatch (Locked)`
+                        : `${activeDisplayPin.name} | Coming Soon (Locked)`}
                     </div>
 
-                    {/* Action Button */}
+                    {/* Action Button: Explicit Navigation only when user chooses to take action */}
                     <button 
-                      onClick={() => onSelectRegion(activeHoveredPin.id)}
+                      onClick={() => onSelectRegion(activeDisplayPin.id, true)}
                       className={`text-xs font-serif font-bold py-2 px-4 rounded-xl w-full shadow-2xs transition-all cursor-pointer hover:scale-[1.01] active:scale-95 ${
                         isUnlocked
                           ? "bg-[#527e69] hover:bg-[#3d604f] text-white"
@@ -455,7 +502,7 @@ export default function JapanMap({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-2.5 pt-2">
         {regionsList.map((r) => {
           const isUnlocked = (unlockedRegions || []).includes(r.region_id);
-          const isActive = activeRegionId === r.region_id;
+          const isActive = activeRegionId === r.region_id || pinnedRegion === r.region_id;
           const meta = REGIONS_METADATA.find(m => m.region_id === r.region_id);
           const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
           const monthName = meta ? getMonthName(meta.month) : "";
@@ -474,10 +521,7 @@ export default function JapanMap({
           return (
             <button
               key={r.region_id}
-              onClick={() => {
-                onSelectRegion(r.region_id);
-                setHoveredRegion(r.region_id);
-              }}
+              onClick={() => handlePinClick(r.region_id)}
               onMouseEnter={() => handleMouseEnterPin(r.region_id)}
               onMouseLeave={handleMouseLeavePin}
               className={`flex items-start gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-2xl border text-left transition-all cursor-pointer shadow-2xs ${
@@ -528,7 +572,16 @@ export default function JapanMap({
         const monthName = getMonthName(monthNum);
         const isCurrent = monthStatus === "current";
         const isPast = monthStatus === "past";
-        const isSelectedActive = activeRegionId === selectedMeta.region_id;
+        const isSelectedActive = activeRegionId === selectedMeta.region_id || pinnedRegion === selectedMeta.region_id;
+
+        const handleTrackerChange = (newIndex: number) => {
+          setTrackerIndex(newIndex);
+          const targetMeta = REGIONS_METADATA[newIndex];
+          if (targetMeta) {
+            setPinnedRegion(targetMeta.region_id);
+            onSelectRegion(targetMeta.region_id, false);
+          }
+        };
 
         return (
           <div className="mt-8 border-t border-stone-200/80 pt-5 space-y-3">
@@ -545,14 +598,14 @@ export default function JapanMap({
               <div className="flex items-center gap-1.5">
                 {trackerIndex !== currentCalMonth - 1 && (
                   <button
-                    onClick={() => setTrackerIndex(currentCalMonth - 1)}
+                    onClick={() => handleTrackerChange(currentCalMonth - 1)}
                     className="text-[10px] font-mono font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded-lg border border-amber-200 transition-colors cursor-pointer mr-1"
                   >
                     Current Month
                   </button>
                 )}
                 <button
-                  onClick={() => setTrackerIndex(prev => (prev > 0 ? prev - 1 : 11))}
+                  onClick={() => handleTrackerChange(trackerIndex > 0 ? trackerIndex - 1 : 11)}
                   className="w-7 h-7 rounded-lg border border-stone-200 hover:border-stone-300 hover:bg-stone-50 flex items-center justify-center text-stone-600 transition-colors cursor-pointer"
                   title="Previous Dispatch"
                   aria-label="Previous Dispatch"
@@ -560,7 +613,7 @@ export default function JapanMap({
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => setTrackerIndex(prev => (prev < 11 ? prev + 1 : 0))}
+                  onClick={() => handleTrackerChange(trackerIndex < 11 ? trackerIndex + 1 : 0)}
                   className="w-7 h-7 rounded-lg border border-stone-200 hover:border-stone-300 hover:bg-stone-50 flex items-center justify-center text-stone-600 transition-colors cursor-pointer"
                   title="Next Dispatch"
                   aria-label="Next Dispatch"
@@ -630,7 +683,12 @@ export default function JapanMap({
 
               <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end pt-1 sm:pt-0 border-t sm:border-t-0 border-stone-200/50">
                 <button
-                  onClick={() => onSelectRegion(selectedMeta.region_id)}
+                  onClick={() => {
+                    setPinnedRegion(selectedMeta.region_id);
+                    setHoveredRegion(selectedMeta.region_id);
+                    onSelectRegion(selectedMeta.region_id, false);
+                    mapContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                  }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     isSelectedActive
                       ? "bg-stone-800 text-white shadow-xs"
@@ -651,7 +709,7 @@ export default function JapanMap({
                 return (
                   <button
                     key={m.region_id}
-                    onClick={() => setTrackerIndex(idx)}
+                    onClick={() => handleTrackerChange(idx)}
                     title={`${getMonthName(m.month)} (${m.region_name})`}
                     className={`transition-all rounded-full cursor-pointer ${
                       isSelected

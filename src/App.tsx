@@ -598,29 +598,36 @@ export default function App() {
     }
   };
 
-  const handleSelectRegion = (id: string) => {
+  const handleSelectRegion = (id: string, navigate: boolean = false) => {
     const metadata = REGIONS_METADATA.find(r => r.region_id === id);
     if (!metadata) return;
 
     setActiveRegionId(id);
+
+    // If this is just a selection/inspection on the map (navigate === false),
+    // keep the user exactly where they are for a predictable, calm browsing experience!
+    if (!navigate) {
+      return;
+    }
+
     const monthStatus = getRegionMonthStatus(metadata.month);
     const isAlreadyUnlocked = isSubscriberActive && (session?.unlocked_regions || []).includes(id);
 
-    // If already unlocked for this user, let them view their journal
+    // If already unlocked for this user, navigate to their journal letter
     if (isAlreadyUnlocked) {
       setActiveTab("journal");
       setTimeout(() => {
-        document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
+        document.getElementById("journal-region-details")?.scrollIntoView({ behavior: "smooth" });
       }, 100);
       return;
     }
 
-    // SCENARIO C: Current month & not yet subscribed -> directly navigate to subscription page!
+    // SCENARIO C: Current month & not yet subscribed -> navigate to subscription plans!
     if (monthStatus === "current") {
       if (isSubscriberActive) {
         setActiveTab("journal");
         setTimeout(() => {
-          document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
+          document.getElementById("journal-region-details")?.scrollIntoView({ behavior: "smooth" });
         }, 100);
         return;
       }
@@ -632,10 +639,10 @@ export default function App() {
     }
 
     // SCENARIO A (Past month) & SCENARIO B (Future month):
-    // Stays locked in Travel Journal with specific notice (cannot be unlocked here)
+    // Navigate to Journal to view archival envelope details
     setActiveTab("journal");
     setTimeout(() => {
-      document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
+      document.getElementById("journal-region-details")?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   };
 
