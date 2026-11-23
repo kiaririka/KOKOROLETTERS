@@ -48,6 +48,12 @@ import {
   checkAndExpireOverdueSubscriptions,
   getAllOrders
 } from "./firestoreService.ts";
+import { 
+  INTERNATIONAL_CURRENCIES, 
+  SupportedCurrency, 
+  detectLocalCurrency, 
+  getPlanPriceString 
+} from "./currencyService.ts";
 import { Region, Subscriber, PlanTier, SubscriptionStatus } from "./types.ts";
 import { REGIONS_METADATA, LORE_DATA, getRegionMonthStatus, MonthStatus, getCurrentMonthNumber, getMonthName } from "./data/lore.ts";
 
@@ -128,6 +134,16 @@ export default function App() {
   const [editAddressInput, setEditAddressInput] = useState("");
   const [selectedPlanToChange, setSelectedPlanToChange] = useState<"Standard" | "Bundle">("Bundle");
 
+  // Sign in & checkout options (Newsletter opt-in & Terms acceptance)
+  const [authOptInNewsletter, setAuthOptInNewsletter] = useState(true);
+  const [authAcceptTerms, setAuthAcceptTerms] = useState(false);
+  const [checkoutOptInNewsletter, setCheckoutOptInNewsletter] = useState(true);
+  const [checkoutAcceptTerms, setCheckoutAcceptTerms] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+
+  // Local currency selection
+  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>("USD");
+
   // Loading & notification states for actions
   const [updatingPlan, setUpdatingPlan] = useState(false);
   const [cancellingSub, setCancellingSub] = useState(false);
@@ -145,6 +161,17 @@ export default function App() {
       setJustUnlockedRegionId(null);
     }, 3200);
   };
+
+  // Auto-detect visitor's local currency and regional default
+  useEffect(() => {
+    const detected = detectLocalCurrency();
+    setSelectedCurrency(detected);
+    if (detected === "INR") {
+      setPlanDestination("India");
+    } else {
+      setPlanDestination("International");
+    }
+  }, []);
 
   // Fetch session & regions on mount
   useEffect(() => {
@@ -325,11 +352,21 @@ export default function App() {
       setAuthError("Please provide a valid email address.");
       return;
     }
+    if (!authAcceptTerms) {
+      setAuthError("Please accept the Terms & Conditions to proceed.");
+      return;
+    }
 
     setRequestingLink(true);
     setAuthMessage("");
     setAuthError("");
     setGeneratedLink("");
+
+    // If opted into newsletter, mark and save in Firestore
+    if (authOptInNewsletter) {
+      saveNewsletter("Traveler", emailInput.trim()).catch(e => console.warn(e));
+      setIsNewsletterSubscribed(true);
+    }
 
     try {
       const res = await fetch("/api/auth/request-link", {
@@ -363,8 +400,18 @@ export default function App() {
       alert("Please provide a complete shipping address.");
       return;
     }
+    if (!checkoutAcceptTerms) {
+      alert("Please accept the Terms & Conditions to proceed with your subscription.");
+      return;
+    }
 
     setSimulatingWebhook(true);
+
+    // If opted into newsletter, mark and save in Firestore
+    if (checkoutOptInNewsletter) {
+      saveNewsletter("Traveler", directCheckoutEmail.trim()).catch(e => console.warn(e));
+      setIsNewsletterSubscribed(true);
+    }
     try {
       const res = await fetch("/api/checkout/direct", {
         method: "POST",
@@ -943,27 +990,61 @@ export default function App() {
                       </p>
                     </div>
 
-                    <form onSubmit={handleSendMagicLink} className="flex gap-2">
-                      <input
-                        type="email"
-                        required
-                        placeholder="Enter your email (e.g. isha79799@gmail.com)"
-                        value={emailInput}
-                        onChange={(e) => setEmailInput(e.target.value)}
-                        className="flex-1 px-3 py-2 text-xs rounded-xl border border-ghibli-green bg-white focus:outline-none"
-                      />
-                      <button
-                        type="submit"
-                        disabled={requestingLink}
-                        className="px-4 py-2 bg-ghibli-green-dark text-white hover:bg-stone-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
-                      >
-                        {requestingLink ? (
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Send className="w-3.5 h-3.5" />
-                        )}
-                        <span>Send Link</span>
-                      </button>
+                    <form onSubmit={handleSendMagicLink} className="space-y-3">
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          required
+                          placeholder="Enter your email (e.g. isha79799@gmail.com)"
+                          value={emailInput}
+                          onChange={(e) => setEmailInput(e.target.value)}
+                          className="flex-1 px-3 py-2 text-xs rounded-xl border border-ghibli-green bg-white focus:outline-none"
+                        />
+                        <button
+                          type="submit"
+                          disabled={requestingLink}
+                          className="px-4 py-2 bg-ghibli-green-dark text-white hover:bg-stone-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 shrink-0"
+                        >
+                          {requestingLink ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Send className="w-3.5 h-3.5" />
+                          )}
+                          <span>Send Link</span>
+                        </button>
+                      </div>
+
+                      {/* Options: Newsletter and Terms */}
+                      <div className="space-y-1.5 pt-1 text-left border-t border-ghibli-green-light/40">
+                        <label className="flex items-start gap-2 text-[11px] text-[#4a554a] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={authOptInNewsletter}
+                            onChange={(e) => setAuthOptInNewsletter(e.target.checked)}
+                            className="mt-0.5 rounded text-emerald-700 focus:ring-emerald-500 accent-emerald-700 cursor-pointer"
+                          />
+                          <span>Subscribe to our free monthly Cultural Newsletter (Ghibli lore & teasers)</span>
+                        </label>
+                        <label className="flex items-start gap-2 text-[11px] text-[#4a554a] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={authAcceptTerms}
+                            onChange={(e) => setAuthAcceptTerms(e.target.checked)}
+                            className="mt-0.5 rounded text-emerald-700 focus:ring-emerald-500 accent-emerald-700 cursor-pointer"
+                          />
+                          <span>
+                            I accept the{" "}
+                            <button
+                              type="button"
+                              onClick={() => setTermsModalOpen(true)}
+                              className="underline text-emerald-700 hover:text-emerald-950 font-medium cursor-pointer"
+                            >
+                              Terms & Conditions
+                            </button>{" "}
+                            and Dispatch Guidelines <span className="text-rose-600">*</span>
+                          </span>
+                        </label>
+                      </div>
                     </form>
 
                     {authMessage && (
@@ -1033,30 +1114,50 @@ export default function App() {
                     Every monthly dispatch is authentically hand-printed and hand-packed. Choose between our regular monthly <strong>Standard</strong> passage or the complete 12-month <strong>Bundle</strong>.
                   </p>
 
-                  {/* Destination Toggle */}
-                  <div className="inline-flex items-center p-1.5 bg-white border border-ghibli-green-light rounded-2xl shadow-xs mt-2">
-                    <button
-                      onClick={() => setPlanDestination("India")}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        planDestination === "India"
-                          ? "bg-ghibli-green-dark text-[#eedba5] shadow-xs"
-                          : "text-stone-500 hover:text-stone-800"
-                      }`}
-                    >
-                      <span>🇮🇳 Domestic India</span>
-                      <span className="text-[10px] font-mono opacity-80">(₹ INR)</span>
-                    </button>
-                    <button
-                      onClick={() => setPlanDestination("International")}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        planDestination === "International"
-                          ? "bg-ghibli-green-dark text-[#eedba5] shadow-xs"
-                          : "text-stone-500 hover:text-stone-800"
-                      }`}
-                    >
-                      <span>🌏 International</span>
-                      <span className="text-[10px] font-mono opacity-80">(₹ INR)</span>
-                    </button>
+                  {/* Destination & Currency Toggle */}
+                  <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+                    <div className="inline-flex items-center p-1.5 bg-white border border-ghibli-green-light rounded-2xl shadow-xs">
+                      <button
+                        onClick={() => setPlanDestination("India")}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          planDestination === "India"
+                            ? "bg-ghibli-green-dark text-[#eedba5] shadow-xs"
+                            : "text-stone-500 hover:text-stone-800"
+                        }`}
+                      >
+                        <span>🇮🇳 Domestic India</span>
+                        <span className="text-[10px] font-mono opacity-80">(₹ INR)</span>
+                      </button>
+                      <button
+                        onClick={() => setPlanDestination("International")}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          planDestination === "International"
+                            ? "bg-ghibli-green-dark text-[#eedba5] shadow-xs"
+                            : "text-stone-500 hover:text-stone-800"
+                        }`}
+                      >
+                        <span>🌏 International</span>
+                        <span className="text-[10px] font-mono opacity-80">({INTERNATIONAL_CURRENCIES[selectedCurrency].symbol} {selectedCurrency})</span>
+                      </button>
+                    </div>
+
+                    {/* Local currency selector dropdown for International travelers */}
+                    {planDestination === "International" && (
+                      <div className="inline-flex items-center gap-1.5 bg-white border border-ghibli-green-light px-3 py-2 rounded-2xl shadow-xs text-xs">
+                        <span className="text-[10px] text-ghibli-sage font-mono uppercase font-bold">Currency:</span>
+                        <select
+                          value={selectedCurrency}
+                          onChange={(e) => setSelectedCurrency(e.target.value as SupportedCurrency)}
+                          className="text-xs font-serif font-bold text-ghibli-green-dark bg-transparent focus:outline-none cursor-pointer"
+                        >
+                          {Object.values(INTERNATIONAL_CURRENCIES).map((c) => (
+                            <option key={c.code} value={c.code}>
+                              {c.label} • {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1076,15 +1177,15 @@ export default function App() {
 
                       <div className="space-y-1">
                         <span className="text-3xl font-serif font-bold text-ghibli-green-dark block">
-                          {planDestination === "India" ? "₹999" : "₹1,200 + ₹1,000"}
-                          <span className="text-xs font-normal text-ghibli-sage font-sans">
-                            {planDestination === "India" ? " / month" : " shipping / month"}
-                          </span>
+                          {planDestination === "India" 
+                            ? "₹999" 
+                            : INTERNATIONAL_CURRENCIES[selectedCurrency].standardFormatted}
+                          <span className="text-xs font-normal text-ghibli-sage font-sans"> / month</span>
                         </span>
                         <p className="text-xs text-ghibli-sage leading-relaxed">
                           {planDestination === "India" 
-                            ? "Monthly based subscription. Free domestic speed-post across India." 
-                            : "Regular monthly subscription. Total ₹2,200/mo (₹1,200 kit + ₹1,000 tracked international airmail)."}
+                            ? "Regular monthly subscription. Free domestic speed-post across India." 
+                            : "Regular monthly subscription. Total includes tracked international airmail."}
                         </p>
                       </div>
 
@@ -1147,13 +1248,15 @@ export default function App() {
 
                       <div className="space-y-1">
                         <span className="text-3xl font-serif font-bold text-amber-950 block">
-                          {planDestination === "India" ? "₹10,000" : "₹24,200"}
+                          {planDestination === "India" 
+                            ? "₹10,000" 
+                            : INTERNATIONAL_CURRENCIES[selectedCurrency].bundleFormatted}
                           <span className="text-xs font-normal text-amber-800 font-sans"> / year</span>
                         </span>
                         <p className="text-xs text-amber-900/80 leading-relaxed">
                           {planDestination === "India" 
-                            ? "Buying for all 12 months in bulk! Yearly subscription — save ₹1,988 compared to monthly." 
-                            : "Buying all 12 months in bulk: (₹1,200 × 11) + (₹1,000 shipping × 11). Pay for 11 months, get 1 month + shipping FREE!"}
+                            ? "All 12 months in bulk! Yearly subscription — save ₹1,988 compared to monthly." 
+                            : "All 12 months in bulk! Pay for 11 months, get 1 full month + tracked international shipping completely FREE!"}
                         </p>
                       </div>
 
@@ -1244,7 +1347,7 @@ export default function App() {
                           </p>
                         </div>
 
-                        <form onSubmit={handleSendMagicLink} className="space-y-2.5 mt-2">
+                        <form onSubmit={handleSendMagicLink} className="space-y-3 mt-2">
                           <input
                             type="email"
                             required
@@ -1265,6 +1368,38 @@ export default function App() {
                             )}
                             <span>Send Magic Link</span>
                           </button>
+
+                          {/* Options: Newsletter and Terms */}
+                          <div className="space-y-1.5 pt-1 text-left border-t border-ghibli-green-light/40">
+                            <label className="flex items-start gap-2 text-[11px] text-[#4a554a] cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={authOptInNewsletter}
+                                onChange={(e) => setAuthOptInNewsletter(e.target.checked)}
+                                className="mt-0.5 rounded text-emerald-700 focus:ring-emerald-500 accent-emerald-700 cursor-pointer"
+                              />
+                              <span>Subscribe to our free monthly Cultural Newsletter (Ghibli lore & teasers)</span>
+                            </label>
+                            <label className="flex items-start gap-2 text-[11px] text-[#4a554a] cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={authAcceptTerms}
+                                onChange={(e) => setAuthAcceptTerms(e.target.checked)}
+                                className="mt-0.5 rounded text-emerald-700 focus:ring-emerald-500 accent-emerald-700 cursor-pointer"
+                              />
+                              <span>
+                                I accept the{" "}
+                                <button
+                                  type="button"
+                                  onClick={() => setTermsModalOpen(true)}
+                                  className="underline text-emerald-700 hover:text-emerald-950 font-medium cursor-pointer"
+                                >
+                                  Terms & Conditions
+                                </button>{" "}
+                                and Dispatch Guidelines <span className="text-rose-600">*</span>
+                              </span>
+                            </label>
+                          </div>
                         </form>
 
                         {authMessage && (
@@ -1779,12 +1914,14 @@ export default function App() {
                     <span className="text-[9px] font-mono font-bold text-emerald-800 uppercase tracking-wider block">Selected Passage</span>
                     <div className="flex justify-between items-center">
                       <span className="font-serif font-bold text-sm text-[#3d4c41]">
-                        {directCheckoutTier} Passage ({directCheckoutDestination === "India" ? "Domestic India" : "International"})
+                        {directCheckoutTier} Passage ({directCheckoutDestination === "India" ? "Domestic India" : `International - ${selectedCurrency}`})
                       </span>
                       <span className="font-serif font-bold text-emerald-800">
                         {directCheckoutDestination === "India" 
-                          ? (directCheckoutTier === "Bundle" ? "₹10,000 / year (Bulk)" : "₹999 / month")
-                          : (directCheckoutTier === "Bundle" ? "₹24,200 / year (Bulk)" : "₹1,200 + ₹1,000 shp / mo")}
+                          ? (directCheckoutTier === "Bundle" ? "₹10,000 / year (Total)" : "₹999 / month (Total)")
+                          : (directCheckoutTier === "Bundle" 
+                              ? `${INTERNATIONAL_CURRENCIES[selectedCurrency].bundleFormatted} / year (Total)` 
+                              : `${INTERNATIONAL_CURRENCIES[selectedCurrency].standardFormatted} / month (Total)`)}
                       </span>
                     </div>
                     <span className="text-[10px] text-ghibli-sage block italic font-medium">
@@ -1826,6 +1963,38 @@ export default function App() {
                     <p className="text-[10px] text-ghibli-sage">
                       To safely deliver your beautiful monthly physical prints, stickers, and hand-sealed letters.
                     </p>
+                  </div>
+
+                  {/* Options: Newsletter and Terms */}
+                  <div className="space-y-2 pt-1 border-t border-[#e2ebd9] text-left">
+                    <label className="flex items-start gap-2 text-[11px] text-[#4a554a] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checkoutOptInNewsletter}
+                        onChange={(e) => setCheckoutOptInNewsletter(e.target.checked)}
+                        className="mt-0.5 rounded text-emerald-700 focus:ring-emerald-500 accent-emerald-700 cursor-pointer"
+                      />
+                      <span>Subscribe to our free monthly Cultural Newsletter (Ghibli lore & teasers)</span>
+                    </label>
+                    <label className="flex items-start gap-2 text-[11px] text-[#4a554a] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checkoutAcceptTerms}
+                        onChange={(e) => setCheckoutAcceptTerms(e.target.checked)}
+                        className="mt-0.5 rounded text-emerald-700 focus:ring-emerald-500 accent-emerald-700 cursor-pointer"
+                      />
+                      <span>
+                        I accept the{" "}
+                        <button
+                          type="button"
+                          onClick={() => setTermsModalOpen(true)}
+                          className="underline text-emerald-700 hover:text-emerald-950 font-medium cursor-pointer"
+                        >
+                          Terms & Conditions
+                        </button>{" "}
+                        and Dispatch Guidelines <span className="text-rose-600">*</span>
+                      </span>
+                    </label>
                   </div>
 
                   <button 
@@ -1917,8 +2086,10 @@ export default function App() {
                           )}
                         </div>
                         <p className="text-lg font-serif font-bold text-emerald-800">
-                          {session?.subscriber?.destination === "International" ? "₹1,200 + ₹1,000" : "₹999"}
-                          <span className="text-xs font-normal text-stone-500"> {session?.subscriber?.destination === "International" ? " shp/mo" : " / month"}</span>
+                          {session?.subscriber?.destination === "International" 
+                            ? INTERNATIONAL_CURRENCIES[selectedCurrency].standardFormatted
+                            : "₹999"}
+                          <span className="text-xs font-normal text-stone-500"> / month</span>
                         </p>
                         <ul className="text-[11px] text-[#4a554a] mt-2 space-y-1 font-sans">
                           <li>• Regular monthly subscription</li>
@@ -1945,7 +2116,9 @@ export default function App() {
                           )}
                         </div>
                         <p className="text-lg font-serif font-bold text-emerald-800">
-                          {session?.subscriber?.destination === "International" ? "₹24,200" : "₹10,000"}
+                          {session?.subscriber?.destination === "International" 
+                            ? INTERNATIONAL_CURRENCIES[selectedCurrency].bundleFormatted
+                            : "₹10,000"}
                           <span className="text-xs font-normal text-stone-500"> / year</span>
                         </p>
                         <ul className="text-[11px] text-[#4a554a] mt-2 space-y-1 font-sans">
@@ -2139,6 +2312,91 @@ export default function App() {
                     >
                       <Edit3 className="w-4 h-4" />
                       <span>Save Address</span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Terms & Conditions Modal */}
+        <AnimatePresence>
+          {termsModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="bg-[#fbf9f4] w-full max-w-lg rounded-2xl shadow-xl overflow-hidden relative border border-[#e7d8b5] max-h-[85vh] flex flex-col"
+              >
+                <div className="absolute inset-2 border-[1.5px] border-[#dcd3b9] rounded-xl pointer-events-none" />
+                
+                <div className="p-6 md:p-8 relative z-10 overflow-y-auto space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-widest">
+                        📜 Traveler Covenant
+                      </span>
+                      <h2 className="text-2xl font-serif font-bold text-[#3d4c41] mt-2 tracking-tight">
+                        Terms & Conditions
+                      </h2>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setTermsModalOpen(false)}
+                      className="text-stone-400 hover:text-stone-700 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 text-xs text-[#4a554a] leading-relaxed pt-2">
+                    <div className="bg-white p-3.5 rounded-xl border border-stone-200/70 space-y-1">
+                      <h4 className="font-serif font-bold text-sm text-[#2b3a2f]">1. Handcrafted Dispatches</h4>
+                      <p>
+                        Kokoro Letters dispatches are prepared with tactile craftsmanship. Each envelope contains real paper prints, stickers, and hand-sealed letters inspired by Japan.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-3.5 rounded-xl border border-stone-200/70 space-y-1">
+                      <h4 className="font-serif font-bold text-sm text-[#2b3a2f]">2. Shipping & Delivery Cycles</h4>
+                      <p>
+                        Parcels are prepared and dispatched on monthly cycles. Domestic orders within India are delivered via Speed-Post (3-5 days). International parcels are dispatched via tracked airmail directly to your registered destination.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-3.5 rounded-xl border border-stone-200/70 space-y-1">
+                      <h4 className="font-serif font-bold text-sm text-[#2b3a2f]">3. Plans & Cancellations</h4>
+                      <p>
+                        Standard plans renew monthly; Bundle plans cover all 12 regions in bulk. Subscribers may cancel or pause at any time from their ledger. Already-paid dispatches for the current month remain active and will be shipped.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-3.5 rounded-xl border border-stone-200/70 space-y-1">
+                      <h4 className="font-serif font-bold text-sm text-[#2b3a2f]">4. Privacy & Postal Address</h4>
+                      <p>
+                        Your email and shipping address are held in confidence. They are used exclusively to process your subscription, deliver physical parcels, and send periodic travel whispers if subscribed.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthAcceptTerms(true);
+                        setCheckoutAcceptTerms(true);
+                        setTermsModalOpen(false);
+                      }}
+                      className="w-full py-3 bg-[#a8c1a6] hover:bg-[#97b395] text-[#2b3a2f] font-serif font-bold text-xs rounded-xl shadow-xs transition-all border border-[#96af94] cursor-pointer"
+                    >
+                      I Understand & Accept
                     </button>
                   </div>
                 </div>
