@@ -5,8 +5,12 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { MapPin, Lock, Unlock, Clock, Truck, CheckCircle, Package, Sparkles, Archive, ChevronLeft, ChevronRight } from "lucide-react";
-import { REGIONS_METADATA, getRegionMonthStatus, getMonthName, getCurrentMonthNumber } from "../data/lore.ts";
+import { 
+  MapPin, Lock, Unlock, Clock, Truck, CheckCircle, Package, Sparkles, Archive, 
+  ChevronLeft, ChevronRight, Compass, Image as ImageIcon, X, Maximize2 
+} from "lucide-react";
+import { REGIONS_METADATA, LORE_DATA, getRegionMonthStatus, getMonthName, getCurrentMonthNumber } from "../data/lore.ts";
+import MapThreeCanvas, { AnimationMode } from "./MapThreeCanvas.tsx";
 
 interface JapanMapProps {
   isSubscriber?: boolean;
@@ -16,6 +20,21 @@ interface JapanMapProps {
   onSelectRegion: (id: string) => void;
   regionsList: Array<{ region_id: string; region_name: string }>;
 }
+
+const REGION_KANJI: Record<string, string> = {
+  hokkaido: "北海道",
+  tohoku: "東北",
+  shinshu: "信州",
+  kanto: "関東",
+  chubu: "中部",
+  iseshima: "伊勢志摩",
+  kansai: "関西",
+  chugoku: "中国",
+  seto: "瀬戸内",
+  shikoku: "四国",
+  kyushu: "九州",
+  okinawa: "沖縄",
+};
 
 export default function JapanMap({
   unlockedRegions,
@@ -27,6 +46,9 @@ isSubscriber = false
 }: JapanMapProps) {
   const currentCalMonth = getCurrentMonthNumber();
   const [trackerIndex, setTrackerIndex] = useState(() => Math.max(0, currentCalMonth - 1));
+  const [animationMode, setAnimationMode] = useState<AnimationMode>("sakura");
+  const [mapVisualMode, setMapVisualMode] = useState<"parchment" | "living">("parchment");
+  const [enlargedImageRegion, setEnlargedImageRegion] = useState<string | null>(null);
   // Define coordinates and stylized path/shape descriptors for the 12 regions on a 500x500 map canvas
   const mapRegions = [
     {
@@ -194,9 +216,21 @@ isSubscriber = false
     }, 400);
   };
 
+  const currentMonthRegionId = REGIONS_METADATA.find(m => m.month === currentCalMonth)?.region_id || "kyushu";
+  const displayRegionId = hoveredRegion || activeRegionId || currentMonthRegionId;
+  const displayRegionMeta = REGIONS_METADATA.find(m => m.region_id === displayRegionId);
+  const displayRegionLore = LORE_DATA[displayRegionId];
+  const displayRegionMonthStatus = displayRegionMeta ? getRegionMonthStatus(displayRegionMeta.month) : "past";
+  const displayRegionMonthName = displayRegionMeta ? getMonthName(displayRegionMeta.month) : "";
+  const isDisplayRegionUnlocked = unlockedRegions.includes(displayRegionId);
+
+  // Active coordinates for the Three.js 3D beacon
+  const targetedRegionObj = mapRegions.find(r => r.id === (activeRegionId || displayRegionId));
+  const activeBeaconCoords = targetedRegionObj ? { x: targetedRegionObj.labelX, y: targetedRegionObj.labelY } : null;
+
   return (
     <div id="interactive-japan-map" className="relative bg-stone-50/50 p-6 rounded-3xl border border-stone-200/80 shadow-sm backdrop-blur-sm">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-lg font-semibold text-stone-800 tracking-tight flex items-center gap-2">
             <MapPin className="w-5 h-5 text-stone-600" />
@@ -214,12 +248,208 @@ isSubscriber = false
         </div>
       </div>
 
-      <div ref={containerRef} className="relative aspect-square w-full bg-stone-100/50 rounded-2xl border border-stone-200/40">
+      {/* Interactive Visual Showcase Card with Image & 3D Controls */}
+      <div className="mb-4 bg-gradient-to-r from-white to-[#fbf9f4] border border-stone-200/90 rounded-2xl p-3 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3 relative overflow-hidden">
+        {/* Left: Thumbnail with Ken-Burns zoom & Click to Enlarge */}
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div 
+            onClick={() => setEnlargedImageRegion(displayRegionId)}
+            className="relative w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden shadow-xs cursor-pointer group shrink-0 border border-stone-200"
+            title="Click to view full-resolution regional photography"
+          >
+            {displayRegionLore?.assets_url ? (
+              <img
+                src={displayRegionLore.assets_url}
+                alt={displayRegionMeta?.region_name || "Japan"}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-400">
+                <ImageIcon className="w-6 h-6" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-50 group-hover:opacity-30 transition-opacity" />
+            <div className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-xs text-white p-1 rounded-md text-[9px]">
+              <Maximize2 className="w-2.5 h-2.5" />
+            </div>
+            {/* Hanko Stamp Pill on image */}
+            <span className="absolute top-1 left-1 bg-white/95 backdrop-blur-xs text-[#991b1b] text-[8px] font-serif font-bold px-1.5 py-0.5 rounded shadow-2xs">
+              {REGION_KANJI[displayRegionId] || "日本"}
+            </span>
+          </div>
+
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500">
+                Month {displayRegionMeta?.month}: {displayRegionMonthName}
+              </span>
+              <span className={`text-[9px] font-mono px-2 py-0.2 rounded-full border ${
+                isDisplayRegionUnlocked
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold"
+                  : displayRegionMonthStatus === "current"
+                  ? "bg-amber-50 text-amber-900 border-amber-200 font-bold animate-pulse"
+                  : displayRegionMonthStatus === "past"
+                  ? "bg-stone-100 text-stone-600 border-stone-200"
+                  : "bg-blue-50 text-blue-700 border-blue-200"
+              }`}>
+                {isDisplayRegionUnlocked 
+                  ? "Unlocked" 
+                  : displayRegionMonthStatus === "current" 
+                  ? "Active Dispatch" 
+                  : displayRegionMonthStatus === "past" 
+                  ? "Past Archive" 
+                  : "Upcoming"}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <h4 className="font-serif font-bold text-stone-900 text-base tracking-tight truncate">
+                {displayRegionMeta?.region_name}
+              </h4>
+              <span className="text-xs font-serif text-stone-500 font-medium">
+                {REGION_KANJI[displayRegionId]}
+              </span>
+            </div>
+            <p className="text-[11px] text-stone-600 line-clamp-1 italic font-serif">
+              {displayRegionLore?.lore_content.split("\n\n")[1] || "A slow-living journey celebrating the spirit world of Japan."}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Layer Mode & Three.js 3D Animation Switch */}
+        <div className="flex items-center gap-2 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0 border-stone-200/60">
+          {/* Visual Layer Mode Toggle */}
+          <div className="inline-flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-[10px] font-medium">
+            <button
+              onClick={() => setMapVisualMode("parchment")}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                mapVisualMode === "parchment"
+                  ? "bg-white text-stone-800 shadow-2xs font-semibold"
+                  : "text-stone-500 hover:text-stone-800"
+              }`}
+              title="Antique Cartography Map with calligraphy"
+            >
+              <Compass className="w-3 h-3" />
+              <span>Cartography</span>
+            </button>
+            <button
+              onClick={() => setMapVisualMode("living")}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                mapVisualMode === "living"
+                  ? "bg-white text-stone-800 shadow-2xs font-semibold"
+                  : "text-stone-500 hover:text-stone-800"
+              }`}
+              title="Living Photographic Realm backdrop"
+            >
+              <ImageIcon className="w-3 h-3" />
+              <span>Living Realm</span>
+            </button>
+          </div>
+
+          {/* Three.js 3D Animation Toggle */}
+          <button
+            onClick={() => {
+              setAnimationMode(prev => prev === "sakura" ? "spirits" : prev === "spirits" ? "off" : "sakura");
+            }}
+            className={`px-2.5 py-1.5 rounded-xl border text-[10px] font-mono font-medium transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+              animationMode === "sakura"
+                ? "bg-pink-50 border-pink-200 text-pink-900 hover:bg-pink-100"
+                : animationMode === "spirits"
+                ? "bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100"
+                : "bg-white border-stone-200 text-stone-400 hover:text-stone-600 hover:bg-stone-50"
+            }`}
+            title="Toggle Three.js 3D particle animations"
+          >
+            {animationMode === "sakura" ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
+                <span>🌸 3D Sakura Wind</span>
+              </>
+            ) : animationMode === "spirits" ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>✨ 3D Spirit Lights</span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-stone-300" />
+                <span>3D Animation: Off</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <div ref={containerRef} className="relative aspect-square w-full bg-[#fdfbf6] rounded-2xl border border-stone-200/50 overflow-hidden shadow-inner">
+        {/* Living Photographic Realm Background Layer */}
+        {mapVisualMode === "living" && displayRegionLore?.assets_url && (
+          <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none z-0">
+            <motion.img
+              key={displayRegionId}
+              src={displayRegionLore.assets_url}
+              alt="Living Landscape"
+              initial={{ opacity: 0, scale: 1.05 }}
+              animate={{ opacity: 0.38, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.55 }}
+              className="w-full h-full object-cover filter blur-[0.5px] brightness-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#fcfaf2]/90 via-[#fcfaf2]/60 to-[#fcfaf2]/80 backdrop-blur-[1px]" />
+          </div>
+        )}
+
+        {/* Three.js 3D Interactive Animation Layer */}
+        <MapThreeCanvas
+          activeRegionCoords={activeBeaconCoords}
+          animationMode={animationMode}
+          hoveredRegionId={hoveredRegion}
+        />
+
         <svg
           viewBox="0 0 500 500"
-          className="w-full h-full select-none"
+          className="w-full h-full select-none relative z-10"
           xmlns="http://www.w3.org/2000/svg"
         >
+          {/* Cartography Background Layer: Waves, Compass & Mt. Fuji */}
+          {mapVisualMode === "parchment" && (
+            <g className="pointer-events-none select-none">
+              {/* Antique Japanese Nautical Compass Rose */}
+              <g transform="translate(48, 65) scale(0.85)" className="opacity-45">
+                <circle cx="0" cy="0" r="28" fill="none" stroke="#78716c" strokeWidth="0.8" strokeDasharray="2 2" />
+                <circle cx="0" cy="0" r="22" fill="none" stroke="#78716c" strokeWidth="1.2" />
+                <line x1="0" y1="-26" x2="0" y2="26" stroke="#78716c" strokeWidth="0.8" />
+                <line x1="-26" y1="0" x2="26" y2="0" stroke="#78716c" strokeWidth="0.8" />
+                {/* Needle */}
+                <polygon points="0,-22 4,-4 0,0 -4,-4" fill="#991b1b" opacity="0.85" />
+                <polygon points="0,22 4,4 0,0 -4,4" fill="#57534e" opacity="0.6" />
+                {/* Kanji Cardinals */}
+                <text x="0" y="-12" textAnchor="middle" fontSize="6.5" fontFamily="serif" fontWeight="bold" fill="#991b1b">北</text>
+                <text x="14" y="2.5" textAnchor="middle" fontSize="6" fontFamily="serif" fill="#78716c">東</text>
+                <text x="0" y="16" textAnchor="middle" fontSize="6" fontFamily="serif" fill="#78716c">南</text>
+                <text x="-14" y="2.5" textAnchor="middle" fontSize="6" fontFamily="serif" fill="#78716c">西</text>
+              </g>
+
+              {/* Decorative Sea Waves in Sea of Japan and Pacific Ocean */}
+              <g className="opacity-35 stroke-stone-400" fill="none" strokeWidth="0.8">
+                <path d="M 160,110 Q 165,106 170,110 T 180,110 M 185,110 Q 190,106 195,110" />
+                <path d="M 140,140 Q 145,136 150,140 T 160,140 M 165,140 Q 170,136 175,140" />
+                <path d="M 360,280 Q 365,276 370,280 T 380,280 M 385,280 Q 390,276 395,280" />
+                <path d="M 340,320 Q 345,316 350,320 T 360,320" />
+              </g>
+
+              {/* Calligraphic Sea Watermarks */}
+              <text x="175" y="150" className="text-[10px] font-serif fill-stone-400/60 tracking-widest">日本海 (Sea of Japan)</text>
+              <text x="350" y="315" className="text-[10px] font-serif fill-stone-400/60 tracking-widest">太平洋 (Pacific Ocean)</text>
+
+              {/* Mt. Fuji Stylized Peak */}
+              <g transform="translate(255, 230) scale(0.65)" className="opacity-45">
+                <path d="M -12,12 L 0,-6 L 12,12 Z" fill="#e7e5e4" stroke="#a8a29e" strokeWidth="0.8" />
+                <path d="M -4,0 L 0,-6 L 4,0 Q 2,2 0,0 Q -2,2 -4,0 Z" fill="#ffffff" />
+                <text x="0" y="20" textAnchor="middle" fontSize="7" fontFamily="serif" fill="#78716c">富士山</text>
+              </g>
+            </g>
+          )}
+
           {/* Map Inset lines for Okinawa */}
           <line x1="10" y1="410" x2="150" y2="410" stroke="#e5e5e7" strokeWidth="1" strokeDasharray="3 3" />
           <line x1="150" y1="410" x2="150" y2="490" stroke="#e5e5e7" strokeWidth="1" strokeDasharray="3 3" />
@@ -310,6 +540,17 @@ isSubscriber = false
                       : "#d6d3d1"
                   }
                 />
+                <text 
+                  x={region.labelX + 8} 
+                  y={region.labelY + 3.5} 
+                  className={`text-[8.5px] font-serif select-none pointer-events-none transition-all ${
+                    isActive || hoveredRegion === region.id 
+                      ? 'fill-stone-900 font-bold opacity-100' 
+                      : 'fill-stone-500 opacity-60'
+                  }`}
+                >
+                  {REGION_KANJI[region.id]}
+                </text>
               </g>
             );
           })}
@@ -775,6 +1016,95 @@ isSubscriber = false
           </div>
         );
       })()}
+
+      {/* Interactive High-Resolution Regional Image Inspection Modal */}
+      <AnimatePresence>
+        {enlargedImageRegion && (() => {
+          const meta = REGIONS_METADATA.find(m => m.region_id === enlargedImageRegion);
+          const lore = LORE_DATA[enlargedImageRegion];
+          const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
+          const isUnlocked = unlockedRegions.includes(enlargedImageRegion);
+
+          return (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+              onClick={() => setEnlargedImageRegion(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ duration: 0.2 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-[#fcfaf2] rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl border border-stone-300 relative text-left"
+              >
+                <button
+                  onClick={() => setEnlargedImageRegion(null)}
+                  className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors cursor-pointer"
+                  aria-label="Close Preview"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                <div className="relative aspect-video w-full overflow-hidden bg-stone-900">
+                  <img
+                    src={lore?.assets_url}
+                    alt={meta?.region_name || "Regional Landscape"}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  
+                  {/* Floating Postal Stamp Watermark */}
+                  <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-xs text-[#991b1b] border border-[#991b1b]/30 px-2.5 py-1 rounded-xl shadow-xs flex items-center gap-1.5 font-serif">
+                    <span className="font-bold text-sm">心</span>
+                    <span className="text-[10px] font-mono tracking-wider font-semibold">
+                      {REGION_KANJI[enlargedImageRegion] || "日本"} • MONTH {meta?.month}
+                    </span>
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 right-4 text-white">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-amber-300">
+                      Authentic Japanese Landscape
+                    </span>
+                    <h3 className="text-2xl font-serif font-bold text-white tracking-tight mt-0.5">
+                      {meta?.region_name} ({REGION_KANJI[enlargedImageRegion]})
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-4">
+                  <p className="text-xs text-stone-700 leading-relaxed font-serif whitespace-pre-line max-h-52 overflow-y-auto pr-1">
+                    {lore?.lore_content}
+                  </p>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-stone-200">
+                    <div className="text-[11px] font-mono text-stone-500">
+                      Status: <strong className="text-stone-800">{isUnlocked ? "Unlocked" : monthStatus === "current" ? "Active Monthly Dispatch" : monthStatus === "past" ? "Archived" : "Upcoming"}</strong>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          onSelectRegion(enlargedImageRegion);
+                          setEnlargedImageRegion(null);
+                        }}
+                        className="px-4 py-2 bg-stone-800 hover:bg-stone-900 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs"
+                      >
+                        Inspect on Map
+                      </button>
+                      <button
+                        onClick={() => setEnlargedImageRegion(null)}
+                        className="px-4 py-2 border border-stone-300 hover:bg-stone-100 text-stone-700 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 }
