@@ -22,18 +22,19 @@ interface JapanMapProps {
 }
 
 // Accurate geographic pin coordinates (x%, y%) aligned with the hand-painted 16:9 Japanese map
+// Coordinates are carefully staggered to prevent pin overlap across mobile, tablet, and desktop viewports
 const REGIONS_MAP_PINS = [
   { id: "hokkaido", name: "Hokkaido", month: 1, x: 79, y: 24, shortKanji: "北" },
-  { id: "tohoku", name: "Tohoku", month: 2, x: 67, y: 44, shortKanji: "東" },
-  { id: "shinshu", name: "Shinshu (Alps)", month: 3, x: 55, y: 54, shortKanji: "信" },
-  { id: "kanto", name: "Kanto (Tokyo)", month: 4, x: 61, y: 62, shortKanji: "関" },
-  { id: "chubu", name: "Chubu (Fuji)", month: 5, x: 51, y: 64, shortKanji: "富" },
-  { id: "iseshima", name: "Ise-Shima", month: 6, x: 47, y: 68, shortKanji: "伊" },
-  { id: "kansai", name: "Kansai (Kyoto)", month: 7, x: 43, y: 59, shortKanji: "京" },
-  { id: "chugoku", name: "Chugoku", month: 8, x: 34, y: 55, shortKanji: "中" },
-  { id: "seto", name: "Seto Inland Sea", month: 9, x: 36, y: 61, shortKanji: "瀬" },
-  { id: "shikoku", name: "Shikoku", month: 10, x: 31, y: 66, shortKanji: "四" },
-  { id: "kyushu", name: "Kyushu", month: 11, x: 21, y: 58, shortKanji: "九" },
+  { id: "tohoku", name: "Tohoku", month: 2, x: 67, y: 43, shortKanji: "東" },
+  { id: "shinshu", name: "Shinshu (Alps)", month: 3, x: 55, y: 52, shortKanji: "信" },
+  { id: "kanto", name: "Kanto (Tokyo)", month: 4, x: 62, y: 62, shortKanji: "関" },
+  { id: "chubu", name: "Chubu (Fuji)", month: 5, x: 52, y: 66, shortKanji: "富" },
+  { id: "iseshima", name: "Ise-Shima", month: 6, x: 47, y: 72, shortKanji: "伊" },
+  { id: "kansai", name: "Kansai (Kyoto)", month: 7, x: 41, y: 56, shortKanji: "京" },
+  { id: "chugoku", name: "Chugoku", month: 8, x: 32, y: 52, shortKanji: "中" },
+  { id: "seto", name: "Seto Inland Sea", month: 9, x: 36, y: 62, shortKanji: "瀬" },
+  { id: "shikoku", name: "Shikoku", month: 10, x: 29, y: 70, shortKanji: "四" },
+  { id: "kyushu", name: "Kyushu", month: 11, x: 19, y: 58, shortKanji: "九" },
   { id: "okinawa", name: "Okinawa", month: 12, x: 13, y: 82, shortKanji: "沖" }
 ];
 
@@ -136,7 +137,10 @@ export default function JapanMap({
               className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
             >
               <button
-                onClick={() => onSelectRegion(pin.id)}
+                onClick={() => {
+                  onSelectRegion(pin.id);
+                  setHoveredRegion(pin.id);
+                }}
                 onMouseEnter={() => handleMouseEnterPin(pin.id)}
                 onMouseLeave={handleMouseLeavePin}
                 className={`group relative flex flex-col items-center cursor-pointer transition-transform duration-200 focus:outline-none ${
@@ -146,14 +150,14 @@ export default function JapanMap({
               >
                 {/* Active/Current Pulsing Aura */}
                 {(isActive || (isCurrent && !hoveredRegion)) && (
-                  <span className={`absolute -inset-1.5 rounded-full animate-ping opacity-60 ${
+                  <span className={`absolute -inset-1 sm:-inset-1.5 rounded-full animate-ping opacity-60 ${
                     isUnlocked ? "bg-emerald-400" : isCurrent ? "bg-amber-400" : "bg-stone-400"
                   }`} />
                 )}
 
-                {/* Pin Badge */}
+                {/* Pin Badge: Responsive scaling from mobile (24px) to desktop (32px) */}
                 <div
-                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-serif font-bold text-xs shadow-md transition-all ${
+                  className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center font-serif font-bold text-[10px] sm:text-xs shadow-md transition-all ${
                     isUnlocked
                       ? "bg-emerald-700 text-white ring-2 ring-emerald-300"
                       : isCurrent
@@ -181,8 +185,16 @@ export default function JapanMap({
             const isCurrent = monthStatus === "current";
             const isFuture = monthStatus === "future";
 
-            // Prevent tooltip from clipping the top boundary if pin is in the upper area
+            // Prevent tooltip from clipping boundaries on any viewport
             const isTopArea = activeHoveredPin.y < 35;
+            const isNearLeft = activeHoveredPin.x < 24;
+            const isNearRight = activeHoveredPin.x > 76;
+
+            const pointerAlignment = isNearLeft
+              ? "self-start ml-5"
+              : isNearRight
+              ? "self-end mr-5"
+              : "self-center";
 
             return (
               <motion.div
@@ -191,26 +203,26 @@ export default function JapanMap({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: isTopArea ? -6 : 8, scale: 0.95 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
-                className="absolute z-50 flex flex-col items-center pointer-events-none"
+                className="absolute z-50 flex flex-col pointer-events-none"
                 style={{ 
                   left: `${activeHoveredPin.x}%`,
                   top: `${activeHoveredPin.y}%`,
                   transform: isTopArea 
-                    ? "translate(-50%, 20px)" 
-                    : "translate(-50%, -100%)",
-                  marginTop: isTopArea ? "0px" : "-12px"
+                    ? (isNearLeft ? "translate(-12%, 14px)" : isNearRight ? "translate(-88%, 14px)" : "translate(-50%, 14px)")
+                    : (isNearLeft ? "translate(-12%, -100%)" : isNearRight ? "translate(-88%, -100%)" : "translate(-50%, -100%)"),
+                  marginTop: isTopArea ? "0px" : "-10px"
                 }}
               >
                 {/* Pointer Triangle (if above pin, points down) */}
                 {!isTopArea && (
-                  <div className="order-2 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-transparent border-t-[#fcfaf2] drop-shadow-xs relative -top-[1px]"></div>
+                  <div className={`order-2 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-transparent border-t-[#fcfaf2] drop-shadow-xs relative -top-[1px] ${pointerAlignment}`}></div>
                 )}
 
                 {/* Tooltip Card Body */}
                 <div 
                   onMouseEnter={handleMouseEnterTooltip}
                   onMouseLeave={handleMouseLeaveTooltip}
-                  className="order-1 bg-[#fcfaf2] border border-[#527e69]/40 shadow-xl rounded-2xl p-3.5 max-w-[230px] w-[220px] text-center flex flex-col items-center relative overflow-hidden pointer-events-auto"
+                  className="order-1 bg-[#fcfaf2] border border-[#527e69]/40 shadow-xl rounded-2xl p-3 sm:p-3.5 max-w-[215px] sm:max-w-[230px] w-[210px] sm:w-[220px] text-center flex flex-col items-center relative overflow-hidden pointer-events-auto"
                 >
                   {/* Header with Inline Lantern and Title */}
                   <div className="flex items-center justify-center gap-1.5 w-full mb-1">
@@ -306,7 +318,7 @@ export default function JapanMap({
 
                 {/* Pointer Triangle (if below pin, points up) */}
                 {isTopArea && (
-                  <div className="order-0 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[8px] border-transparent border-b-[#fcfaf2] drop-shadow-xs relative -bottom-[1px]"></div>
+                  <div className={`order-0 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[8px] border-transparent border-b-[#fcfaf2] drop-shadow-xs relative -bottom-[1px] ${pointerAlignment}`}></div>
                 )}
               </motion.div>
             );
@@ -314,8 +326,8 @@ export default function JapanMap({
         </AnimatePresence>
       </div>
 
-      {/* Grid of Regions Covering the Full Map Area (Generous spacing, no cutoff text) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 pt-2">
+      {/* Grid of Regions Covering the Full Map Area (Generous spacing, responsive columns, zero text cutoff) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-2.5 pt-2">
         {regionsList.map((r) => {
           const isUnlocked = (unlockedRegions || []).includes(r.region_id);
           const isActive = activeRegionId === r.region_id;
@@ -337,10 +349,13 @@ export default function JapanMap({
           return (
             <button
               key={r.region_id}
-              onClick={() => onSelectRegion(r.region_id)}
+              onClick={() => {
+                onSelectRegion(r.region_id);
+                setHoveredRegion(r.region_id);
+              }}
               onMouseEnter={() => handleMouseEnterPin(r.region_id)}
               onMouseLeave={handleMouseLeavePin}
-              className={`flex items-start gap-2.5 p-3 rounded-2xl border text-left transition-all cursor-pointer shadow-2xs ${
+              className={`flex items-start gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-2xl border text-left transition-all cursor-pointer shadow-2xs ${
                 isJustUnlocked
                   ? "bg-emerald-50 border-emerald-400 text-emerald-950 ring-2 ring-emerald-300 shadow-xs"
                   : isActive
@@ -368,8 +383,10 @@ export default function JapanMap({
                 )}
               </div>
               <div className="min-w-0 flex-1 leading-snug">
-                <span className="block font-serif font-bold text-xs text-stone-900">{r.region_name}</span>
-                <span className="text-[10px] font-mono text-stone-500 block mt-0.5 whitespace-nowrap">
+                <span className="block font-serif font-bold text-xs text-stone-900 truncate">
+                  {r.region_name}
+                </span>
+                <span className="text-[10px] font-mono text-stone-500 block mt-0.5 leading-tight">
                   {subLabel}
                 </span>
               </div>

@@ -642,7 +642,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#fbf9f4] text-ghibli-green-dark font-sans selection:bg-ghibli-sand selection:text-ghibli-green-dark pb-12">
       {/* Dynamic Header */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-ghibli-green-light px-6 py-4 vintage-shadow">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-ghibli-green-light px-4 sm:px-6 py-3 sm:py-4 vintage-shadow">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-ghibli-green flex items-center justify-center text-white font-serif font-bold text-xl shadow-inner border border-ghibli-green-dark/10">
@@ -657,7 +657,7 @@ export default function App() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex items-center gap-6 text-sm font-medium">
+          <nav className="flex items-center justify-center flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm font-medium">
             {[
               { id: "journey", label: "Home" },
               { id: "subscription", label: "My Subscriptions" },
@@ -667,7 +667,7 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`transition-colors py-1 px-1 border-b-2 font-serif text-sm ${
+                className={`transition-colors py-1 px-1 border-b-2 font-serif text-xs sm:text-sm ${
                   activeTab === tab.id
                     ? "border-ghibli-green text-ghibli-green-dark font-bold"
                     : "border-transparent text-ghibli-sage hover:text-ghibli-green-dark"
@@ -695,7 +695,7 @@ export default function App() {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-8 h-8 rounded-full bg-white hover:bg-ghibli-green-light flex items-center justify-center text-ghibli-sage hover:text-ghibli-green-dark transition-colors border border-ghibli-green-light"
+                  className="w-8 h-8 rounded-full bg-white hover:bg-ghibli-green-light flex items-center justify-center text-ghibli-sage hover:text-ghibli-green-dark transition-colors border border-ghibli-green-light cursor-pointer"
                   title="Sign Out"
                 >
                   <LogOut className="w-4 h-4" />
@@ -705,7 +705,7 @@ export default function App() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setActiveTab("subscription")}
-                  className="px-4 py-1.5 rounded-full border border-ghibli-green hover:bg-ghibli-green text-ghibli-green-dark hover:text-white text-xs font-serif font-semibold transition-all"
+                  className="px-4 py-1.5 rounded-full border border-ghibli-green hover:bg-ghibli-green text-ghibli-green-dark hover:text-white text-xs font-serif font-semibold transition-all cursor-pointer"
                 >
                   Sign In
                 </button>
@@ -715,7 +715,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <AnimatePresence mode="wait">
           {/* PAGE 1: HOME / LANDING */}
           {activeTab === "journey" && (
@@ -728,7 +728,7 @@ export default function App() {
               className="space-y-10"
             >
               {/* Hero */}
-              <div className="bg-ghibli-green text-ghibli-green-dark rounded-3xl p-10 md:p-16 text-center space-y-5 relative overflow-hidden shadow-xs">
+              <div className="bg-ghibli-green text-ghibli-green-dark rounded-3xl p-6 sm:p-10 md:p-16 text-center space-y-4 sm:space-y-5 relative overflow-hidden shadow-xs">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,#faf6eb20,#0000_50%)] pointer-events-none" />
                 <div className="w-12 h-12 rounded-full bg-ghibli-sand mx-auto flex items-center justify-center text-ghibli-green-dark border border-ghibli-green-dark/10">
                   <Compass className="w-6 h-6" />
@@ -1530,10 +1530,11 @@ export default function App() {
                     )}
                   </AnimatePresence>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  {/* Journal Content Container: Full-Width Responsive Presentation */}
+                  <div className="max-w-4xl mx-auto w-full space-y-8">
                     
-                    {/* Left Column: Map */}
-                    <div className="lg:col-span-5 flex flex-col gap-6">
+                    {/* The Full-Width Interactive Japan Map */}
+                    <div className="w-full">
                       <JapanMap
                         isSubscriber={isSubscriberActive}
                         unlockedRegions={isSubscriberActive ? (session?.unlocked_regions || []) : []}
@@ -1542,78 +1543,10 @@ export default function App() {
                         onSelectRegion={handleSelectRegion}
                         regionsList={regions}
                       />
-
-                      {/* Existing Subscriber History Block */}
-                      {isSubscriberActive && (
-                        <div className="bg-white rounded-3xl p-6 border border-ghibli-green-light shadow-xs space-y-4 text-left">
-                          <h4 className="text-sm font-bold font-serif text-ghibli-green-dark border-b border-ghibli-green-light pb-2 flex items-center gap-1.5">
-                            <BookOpen className="w-4 h-4 text-ghibli-sage" />
-                            Traveler's Passage History
-                          </h4>
-                          <div className="text-xs space-y-2.5">
-                            <div className="flex justify-between items-center bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
-                              <span className="text-emerald-800 font-mono text-[10px] font-bold">ACCOUNT STATUS</span>
-                              <span className="font-bold text-emerald-800">Active Subscriber</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-ghibli-sage font-mono text-[10px] font-bold">PLAN TIER</span>
-                              <span className="font-semibold text-ghibli-green-dark">{session.subscriber?.plan_tier} Plan</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-ghibli-sage font-mono text-[10px] font-bold">SHIPPING DESTINATION</span>
-                              <span className="font-medium text-ghibli-green-dark truncate max-w-[180px]" title={session.subscriber?.shipping_address}>
-                                {session.subscriber?.shipping_address || "None"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-ghibli-sage font-mono text-[10px] font-bold">JOURNEY COMMENCED</span>
-                              <span className="text-ghibli-green-dark font-medium">
-                                {new Date(session.subscriber?.createdAt || "").toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-ghibli-sage font-mono text-[10px] font-bold">UNLOCKED REGIONS</span>
-                              <span className="text-emerald-800 font-bold font-mono bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                                {session.unlocked_regions?.length || 0} of 12
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Stamp Book Display */}
-                          <div className="space-y-2 pt-3 border-t border-stone-100">
-                            <span className="text-[10px] text-ghibli-sage font-mono font-bold uppercase tracking-wider block">
-                              Your Personal Stamp Book
-                            </span>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              {regions.map((reg) => {
-                                const stamped = session.unlocked_regions?.includes(reg.region_id);
-                                const isJustStamped = justUnlockedRegionId === reg.region_id;
-                                return (
-                                  <motion.div
-                                    key={`stamp-book-${reg.region_id}`}
-                                    animate={isJustStamped ? { scale: [1, 1.04, 1] } : { scale: 1 }}
-                                    transition={{ duration: 0.45, ease: "easeOut" }}
-                                    className={`flex items-center gap-1.5 p-1.5 rounded-lg border text-[10px] transition-colors ${
-                                      isJustStamped
-                                        ? "bg-emerald-50 border-emerald-400 text-emerald-900 font-bold ring-1 ring-emerald-300/70"
-                                        : stamped
-                                        ? "bg-emerald-50/50 border-emerald-100 text-emerald-800 font-semibold"
-                                        : "bg-stone-50/50 border-stone-100 text-stone-400"
-                                    }`}
-                                  >
-                                    <span className={`w-1.5 h-1.5 rounded-full ${stamped ? "bg-emerald-600 shadow-xs animate-pulse" : "bg-stone-300"}`} />
-                                    <span className="truncate">{reg.region_name}</span>
-                                  </motion.div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
 
-                    {/* Right Column: Region details / Parchment dispatch letter */}
-                    <div className="lg:col-span-7 flex flex-col gap-6">
+                    {/* Region details / Parchment dispatch letter */}
+                    <div id="journal-region-details" className="w-full flex flex-col gap-6">
                       {loadingRegions ? (
                         <div className="bg-white rounded-3xl p-12 border border-ghibli-green-light flex flex-col items-center justify-center text-stone-400">
                           <RefreshCw className="w-8 h-8 animate-spin text-stone-400 mb-2" />
@@ -1845,6 +1778,73 @@ export default function App() {
                       ) : null}
                     </div>
 
+                    {/* Traveler's Passage History & Stamp Book (Full Width) */}
+                    {isSubscriberActive && (
+                      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-ghibli-green-light shadow-xs space-y-6 text-left">
+                        <h4 className="text-base font-bold font-serif text-ghibli-green-dark border-b border-ghibli-green-light pb-3 flex items-center gap-2">
+                          <BookOpen className="w-5 h-5 text-ghibli-sage" />
+                          Traveler's Passage History
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                          <div className="flex flex-col gap-1 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
+                            <span className="text-emerald-800 font-mono text-[10px] font-bold">ACCOUNT STATUS</span>
+                            <span className="font-bold text-emerald-800">Active Subscriber</span>
+                          </div>
+                          <div className="flex flex-col gap-1 bg-stone-50 p-3 rounded-xl border border-stone-200">
+                            <span className="text-ghibli-sage font-mono text-[10px] font-bold">PLAN TIER</span>
+                            <span className="font-semibold text-ghibli-green-dark">{session.subscriber?.plan_tier} Plan</span>
+                          </div>
+                          <div className="flex flex-col gap-1 bg-stone-50 p-3 rounded-xl border border-stone-200">
+                            <span className="text-ghibli-sage font-mono text-[10px] font-bold">UNLOCKED REGIONS</span>
+                            <span className="text-emerald-800 font-bold font-mono">
+                              {session.unlocked_regions?.length || 0} of 12 Unlocked
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1 bg-stone-50 p-3 rounded-xl border border-stone-200 sm:col-span-2">
+                            <span className="text-ghibli-sage font-mono text-[10px] font-bold">SHIPPING DESTINATION</span>
+                            <span className="font-medium text-ghibli-green-dark truncate" title={session.subscriber?.shipping_address}>
+                              {session.subscriber?.shipping_address || "None"}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1 bg-stone-50 p-3 rounded-xl border border-stone-200">
+                            <span className="text-ghibli-sage font-mono text-[10px] font-bold">JOURNEY COMMENCED</span>
+                            <span className="text-ghibli-green-dark font-medium">
+                              {new Date(session.subscriber?.createdAt || "").toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Stamp Book Display */}
+                        <div className="space-y-3 pt-3 border-t border-stone-100">
+                          <span className="text-[10px] text-ghibli-sage font-mono font-bold uppercase tracking-wider block">
+                            Your Personal Stamp Book
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                            {regions.map((reg) => {
+                              const stamped = session.unlocked_regions?.includes(reg.region_id);
+                              const isJustStamped = justUnlockedRegionId === reg.region_id;
+                              return (
+                                <motion.div
+                                  key={`stamp-book-${reg.region_id}`}
+                                  animate={isJustStamped ? { scale: [1, 1.04, 1] } : { scale: 1 }}
+                                  transition={{ duration: 0.45, ease: "easeOut" }}
+                                  className={`flex items-center gap-2 p-2 rounded-xl border text-xs transition-colors ${
+                                    isJustStamped
+                                      ? "bg-emerald-50 border-emerald-400 text-emerald-900 font-bold ring-1 ring-emerald-300/70"
+                                      : stamped
+                                      ? "bg-emerald-50/50 border-emerald-100 text-emerald-800 font-semibold"
+                                      : "bg-stone-50/50 border-stone-100 text-stone-400"
+                                  }`}
+                                >
+                                  <span className={`w-2 h-2 rounded-full ${stamped ? "bg-emerald-600 shadow-xs animate-pulse" : "bg-stone-300"}`} />
+                                  <span className="truncate">{reg.region_name}</span>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
