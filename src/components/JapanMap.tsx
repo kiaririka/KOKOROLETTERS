@@ -222,7 +222,7 @@ isSubscriber = false
   const displayRegionLore = LORE_DATA[displayRegionId];
   const displayRegionMonthStatus = displayRegionMeta ? getRegionMonthStatus(displayRegionMeta.month) : "past";
   const displayRegionMonthName = displayRegionMeta ? getMonthName(displayRegionMeta.month) : "";
-  const isDisplayRegionUnlocked = unlockedRegions.includes(displayRegionId);
+  const isDisplayRegionUnlocked = (unlockedRegions || []).includes(displayRegionId);
 
   // Active coordinates for the Three.js 3D beacon
   const targetedRegionObj = mapRegions.find(r => r.id === (activeRegionId || displayRegionId));
@@ -311,7 +311,7 @@ isSubscriber = false
               </span>
             </div>
             <p className="text-[11px] text-stone-600 line-clamp-1 italic font-serif">
-              {displayRegionLore?.lore_content.split("\n\n")[1] || "A slow-living journey celebrating the spirit world of Japan."}
+              {displayRegionLore?.lore_content?.split("\n\n")?.[1] || "A slow-living journey celebrating the spirit world of Japan."}
             </p>
           </div>
         </div>
@@ -506,6 +506,7 @@ isSubscriber = false
           {/* 2. Visual Connectors / Markers */}
           {mapRegions.map((region) => {
             const isUnlocked = unlockedRegions.includes(region.id);
+            const isActive = activeRegionId === region.id;
             const meta = REGIONS_METADATA.find(m => m.region_id === region.id);
             const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
             const isCurrent = monthStatus === "current";
@@ -1023,7 +1024,7 @@ isSubscriber = false
           const meta = REGIONS_METADATA.find(m => m.region_id === enlargedImageRegion);
           const lore = LORE_DATA[enlargedImageRegion];
           const monthStatus = meta ? getRegionMonthStatus(meta.month) : "past";
-          const isUnlocked = unlockedRegions.includes(enlargedImageRegion);
+          const isUnlocked = (unlockedRegions || []).includes(enlargedImageRegion);
 
           return (
             <div 
