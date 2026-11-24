@@ -1,4 +1,7 @@
 export interface CfEnv {
+  ASSETS?: {
+    fetch: (request: Request | string) => Promise<Response>;
+  };
   AUTH_SECRET?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
