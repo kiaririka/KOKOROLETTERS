@@ -412,17 +412,27 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: emailInput })
       });
-      const data = await res.json();
-      if (data.success) {
+      const rawText = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        setAuthError(
+          `Email backend unreachable (HTTP ${res.status}). Make sure you are on your Cloudflare Pages URL and /functions deployed.`
+        );
+        return;
+      }
+
+      if (data?.success) {
         setAuthMessage(data.message);
         if (data.link) {
           setGeneratedLink(data.link);
         }
       } else {
-        setAuthError(data.error || "Failed to generate link.");
+        setAuthError(data?.error || `Failed to send magic link (HTTP ${res.status}).`);
       }
     } catch {
-      setAuthError("Network error. Please try again.");
+      setAuthError("Network error reaching /api/auth/request-link. Please check your connection.");
     } finally {
       setRequestingLink(false);
     }
