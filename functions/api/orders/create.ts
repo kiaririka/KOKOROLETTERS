@@ -1,7 +1,6 @@
 import { CfContext, jsonResponse, normalizeEmail } from "../../../shared/cfTypes";
 import { createSessionCookieHeader, getAuthSecret } from "../../../shared/cfCrypto";
 import { createOrderDoc } from "../../../shared/cfFirestore";
-import { sendOrderReceiptEmail } from "../../../shared/cfEmail";
 
 export const onRequestPost = async ({ request, env }: CfContext): Promise<Response> => {
   try {
@@ -54,18 +53,6 @@ export const onRequestPost = async ({ request, env }: CfContext): Promise<Respon
       });
     }
 
-    // Dispatch Japanese Postal Receipt via Resend if configured
-    const emailSent = await sendOrderReceiptEmail(env, {
-      email,
-      recipientName,
-      orderNumber,
-      trackingNumber,
-      destination,
-      shipping_address,
-      totalFormatted,
-      items,
-    });
-
     const headers: Record<string, string> = {};
     const secret = getAuthSecret(env);
     if (secret) {
@@ -77,7 +64,6 @@ export const onRequestPost = async ({ request, env }: CfContext): Promise<Respon
         success: true,
         orderNumber,
         trackingNumber,
-        emailSent,
       },
       200,
       headers
