@@ -267,30 +267,6 @@ export async function getCustomerOrders(email: string): Promise<any[]> {
   }
 }
 
-/**
- * Updates order status and tracking info for admin fulfillment.
- */
-export async function updateOrderStatus(
-  orderId: string, 
-  status: "Processing" | "Dispatched" | "Delivered" | "Cancelled", 
-  trackingNumber?: string
-): Promise<boolean> {
-  try {
-    const docRef = doc(db, "orders", orderId);
-    const updatePayload: Record<string, any> = {
-      status,
-      updatedDate: new Date().toISOString(),
-      updatedAt: serverTimestamp()
-    };
-    if (trackingNumber) updatePayload.trackingNumber = trackingNumber;
-    await updateDoc(docRef, updatePayload);
-    return true;
-  } catch (err) {
-    console.warn("Firestore updateOrderStatus error:", err);
-    return false;
-  }
-}
-
 export interface OrderRecord {
   id: string;
   email: string;
@@ -380,7 +356,8 @@ export async function getAllNewsletter(): Promise<NewsletterRecord[]> {
 export async function updateOrderStatus(
   orderId: string, 
   status: "Active" | "Renewed" | "Cancelled" | "Paused" | "Processing" | "Dispatched" | "Delivered",
-  cancellation_reason?: string
+  cancellation_reason?: string,
+  trackingNumber?: string
 ): Promise<boolean> {
   try {
     const docRef = doc(db, "orders", orderId);
@@ -391,6 +368,9 @@ export async function updateOrderStatus(
     };
     if (cancellation_reason !== undefined) {
       updatePayload.cancellation_reason = cancellation_reason;
+    }
+    if (trackingNumber !== undefined) {
+      updatePayload.trackingNumber = trackingNumber;
     }
     await updateDoc(docRef, updatePayload);
     return true;
