@@ -468,7 +468,7 @@ export default function App() {
         currency: selectedCurrency,
       });
 
-      // 2. Also dispatch to backend / preview API
+      // 2. Also dispatch to backend / preview API (sets signed session cookie + sends Resend receipt)
       const res = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -481,6 +481,9 @@ export default function App() {
           items: orderItems,
           totalFormatted: data.totalFormatted || "",
           currency: selectedCurrency,
+          orderNumber: completeRes.orderNumber,
+          trackingNumber: completeRes.trackingNumber,
+          skipFirestoreWrite: Boolean(completeRes.persistedToFirestore),
         })
       });
       const result = await res.json();

@@ -215,7 +215,7 @@ export async function saveCompleteOrder(orderData: {
   }>;
   totalFormatted: string;
   currency: string;
-}): Promise<{ success: boolean; orderNumber: string; trackingNumber: string }> {
+}): Promise<{ success: boolean; orderNumber: string; trackingNumber: string; persistedToFirestore: boolean }> {
   const cleanEmail = normalizeEmail(orderData.email);
   const orderNum = `KOK-${Math.floor(1000 + Math.random() * 9000)}`;
   const trackNum = orderData.destination === 'India'
@@ -245,11 +245,11 @@ export async function saveCompleteOrder(orderData: {
       createdDate: new Date().toISOString()
     });
 
-    return { success: true, orderNumber: orderNum, trackingNumber: trackNum };
+    return { success: true, orderNumber: orderNum, trackingNumber: trackNum, persistedToFirestore: true };
   } catch (err) {
     console.warn("Firestore saveCompleteOrder notice:", err);
     // In local demo or offline mode, return generated numbers gracefully
-    return { success: true, orderNumber: orderNum, trackingNumber: trackNum };
+    return { success: true, orderNumber: orderNum, trackingNumber: trackNum, persistedToFirestore: false };
   }
 }
 
