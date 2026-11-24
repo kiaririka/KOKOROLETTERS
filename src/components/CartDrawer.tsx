@@ -203,22 +203,24 @@ export default function CartDrawer({
           {items.length > 0 && (
             <div className="p-6 border-t border-[#eedba5] bg-white/90 backdrop-blur-xs space-y-3">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs text-[#547365] font-medium">Launch Batch:</span>
+                <span className="text-xs text-[#547365] font-medium">Dispatch Option:</span>
                 <span className="text-xs font-serif text-[#1b2e24]">
-                  Founding Batch 01 ({destination === "India" ? "India Domestic" : "International"})
+                  {destination === "India"
+                    ? "Tracked Speed Post Included"
+                    : "Standard Airmail (Optional Tracked)"}
                 </span>
               </div>
 
               <div className="bg-[#faf6eb] p-3 rounded-xl border border-[#eedba5] flex items-center gap-2 text-[11px] text-[#1b2e24]">
                 <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                <span>No payment today. Reserve your interest to get priority access when Batch 01 opens.</span>
+                <span>Purchase directly or switch to Waitlist Only on the next step.</span>
               </div>
 
               <button
                 onClick={onProceedToCheckout}
                 className="w-full py-3.5 bg-[#1b2e24] hover:bg-stone-800 text-white font-serif font-bold text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Reserve on Waitlist (No Charge)</span>
+                <span>Continue to Checkout or Waitlist</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

@@ -27,6 +27,7 @@ interface StoreFrontProps {
   selectedCurrency: SupportedCurrency;
   onAddToCart: (product: StoreProduct) => void;
   onDirectSubscribe: (product: StoreProduct) => void;
+  onJoinWaitlist?: () => void;
   onOpenCart: () => void;
   cartCount: number;
 }
@@ -37,6 +38,7 @@ export default function StoreFront({
   selectedCurrency,
   onAddToCart,
   onDirectSubscribe,
+  onJoinWaitlist,
   onOpenCart,
   cartCount,
 }: StoreFrontProps) {
@@ -63,7 +65,7 @@ export default function StoreFront({
 
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-[#eedba5] text-[11px] font-mono text-[#547365]">
           <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-          <span>Founding Batch 01 • Waitlist Open (No Payment Yet)</span>
+          <span>Founding Batch 01 • Month 1, Year Bundle &amp; Waitlist</span>
         </div>
 
         <h2 className="text-3xl md:text-5xl font-serif font-bold text-[#1b2e24] max-w-2xl mx-auto leading-tight">
@@ -71,7 +73,7 @@ export default function StoreFront({
         </h2>
 
         <p className="text-xs md:text-sm text-[#547365] max-w-xl mx-auto leading-relaxed">
-          Explore our planned monthly snail-mail memberships, archived regional editions, and keepsake stationery. Reserve your favorite picks on the Founding Waitlist with zero upfront charge.
+          Join for your First Month, prepay the 12-Moon Year Bundle (2 months free), or hop on our free waitlist while we finalize paper &amp; print craftsmanship.
         </p>
 
         {/* Global Destination & Currency Toggle */}
@@ -98,6 +100,15 @@ export default function StoreFront({
               🌏 Worldwide (Optional Tracked)
             </button>
           </div>
+
+          {onJoinWaitlist && (
+            <button
+              onClick={onJoinWaitlist}
+              className="px-4 py-2 bg-white hover:bg-[#e3ece8]/50 border border-[#9cbfae] text-[#1b2e24] rounded-2xl text-xs font-serif font-bold transition-all shadow-xs cursor-pointer"
+            >
+              Just Join Free Waitlist
+            </button>
+          )}
 
           {cartCount > 0 && (
             <button
@@ -212,7 +223,7 @@ export default function StoreFront({
                       onClick={() => onDirectSubscribe(product)}
                       className="flex-1 py-2.5 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-xl text-xs font-serif font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>Reserve Spot (Waitlist)</span>
+                      <span>{product.billingInterval === "yearly" ? "Purchase Year Bundle" : "Start First Month"}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   ) : (
@@ -221,7 +232,7 @@ export default function StoreFront({
                       className="flex-1 py-2.5 bg-[#9cbfae] hover:bg-[#86ab9a] text-[#1b2e24] rounded-xl text-xs font-serif font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <ShoppingBag className="w-3.5 h-3.5" />
-                      <span>Save to Satchel</span>
+                      <span>Add to Satchel</span>
                     </button>
                   )}
                 </div>
@@ -294,7 +305,9 @@ export default function StoreFront({
                     }}
                     className="w-full py-3 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-xl text-xs font-serif font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Reserve Founding Waitlist Spot</span>
+                    <span>
+                      {quickViewProduct.billingInterval === "yearly" ? "Purchase Year Bundle" : "Start First Month"}
+                    </span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 ) : (
@@ -306,7 +319,7 @@ export default function StoreFront({
                     className="w-full py-3 bg-[#9cbfae] hover:bg-[#86ab9a] text-[#1b2e24] rounded-xl text-xs font-serif font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <ShoppingBag className="w-4 h-4" />
-                    <span>Save to Interest Satchel</span>
+                    <span>Add to Satchel</span>
                   </button>
                 )}
               </div>

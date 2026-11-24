@@ -328,14 +328,14 @@ export default function MonthlyLetterShowcase({ isSubscriber, onSubscribe }: { i
                     <span>Share the love for Japan & beautiful cinema</span>
                   </div>
                   <p className="text-xs text-ghibli-sage">
-                    Reserve your Founding Batch 01 waitlist spot today—no charge until we launch.
+                    Start with your First Month, book the 12-Moon Year Bundle, or join the free waitlist.
                   </p>
                 </div>
                 <button
                   onClick={onSubscribe}
                   className="w-full sm:w-auto px-5 py-2.5 bg-ghibli-green-dark text-white hover:bg-[#2b4436] rounded-xl text-xs font-serif font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
                 >
-                  <span>Join Founding Waitlist</span>
+                  <span>Choose Your Passage</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>

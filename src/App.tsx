@@ -41,7 +41,7 @@ import FaqSection from "./components/FaqSection.tsx";
 import TactileUnboxingTray from "./components/TactileUnboxingTray.tsx";
 import GoshuinchoStampBook from "./components/GoshuinchoStampBook.tsx";
 import ReadingParchmentModal from "./components/ReadingParchmentModal.tsx";
-import CheckoutDrawer from "./components/CheckoutDrawer.tsx";
+import CheckoutDrawer, { CheckoutSelection } from "./components/CheckoutDrawer.tsx";
 import PostcardWhispers from "./components/PostcardWhispers.tsx";
 import AmbientCompassBar from "./components/AmbientCompassBar.tsx";
 import StoreFront from "./components/StoreFront.tsx";
@@ -132,7 +132,8 @@ export default function App() {
   // Modals & Drawers
   const [readingModalOpen, setReadingModalOpen] = useState(false);
   const [checkoutDrawerOpen, setCheckoutDrawerOpen] = useState(false);
-  const [defaultCheckoutTier, setDefaultCheckoutTier] = useState<"Standard" | "Bundle">("Standard");
+  const [defaultCheckoutSelection, setDefaultCheckoutSelection] = useState<CheckoutSelection>("first-month");
+  const [lastSubmissionMode, setLastSubmissionMode] = useState<"purchase" | "waitlist">("purchase");
   const [alreadyOnWaitlist, setAlreadyOnWaitlist] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
@@ -391,7 +392,7 @@ export default function App() {
   };
 
   const handleDirectSubscribe = (product: StoreProduct) => {
-    setDefaultCheckoutTier(product.billingInterval === "yearly" ? "Bundle" : "Standard");
+    setDefaultCheckoutSelection(product.billingInterval === "yearly" ? "year-bundle" : "first-month");
     setCheckoutDrawerOpen(true);
   };
 
@@ -449,13 +450,14 @@ export default function App() {
   };
 
   const handleDrawerCheckout = async (data: {
+    mode: "purchase" | "waitlist";
     recipientName: string;
     email: string;
     shipping_address: string;
     plan_tier: "Standard" | "Bundle";
     destination: "India" | "International";
     shippingMethod: string;
-    gateway: "waitlist";
+    gateway: "razorpay" | "paypal" | "waitlist";
     optInNewsletter: boolean;
     acceptTerms: boolean;
     items?: Array<{
@@ -476,28 +478,94 @@ export default function App() {
           ? `12-Moon Annual (${data.destination})`
           : `Monthly Passage (${data.destination})`;
 
-      const waitlistResult = await saveWaitlist(data.email, {
-        name: data.recipientName,
-        destination: data.destination,
-        preferredPlan,
-        shippingMethod: data.shippingMethod,
-        cityCountry: data.shipping_address,
-        interestedItems: orderItems,
-        estimatedTotal: data.totalFormatted || "",
-        source: cartItems.length > 0 ? "store-satchel-waitlist" : "founding-waitlist",
-      });
+      if (data.mode === "waitlist") {
+        const waitlistResult = await saveWaitlist(data.email, {
+          name: data.recipientName,
+          destination: data.destination,
+          preferredPlan,
+          shippingMethod: data.shippingMethod,
+          cityCountry: data.shipping_address,
+          interestedItems: orderItems,
+          estimatedTotal: data.totalFormatted || "",
+          source: cartItems.length > 0 ? "store-satchel-waitlist" : "founding-waitlist",
+        });
 
+        if (data.optInNewsletter) {
+          saveNewsletter(data.recipientName || "Traveler", data.email.trim()).catch(e => console.warn(e));
+        }
+
+        submitWaitlistEmail(data.email.trim()).catch(e => console.warn(e));
+
+        const passRef = `KOK-WL-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newWaitlistPass: CustomerOrder = {
+          id: `wl_${Date.now()}`,
+          orderNumber: passRef,
+          trackingNumber: data.shippingMethod || "Batch 01 Priority",
+          email: data.email,
+          recipientName: data.recipientName,
+          shipping_address: data.shipping_address,
+          destination: data.destination,
+          items: orderItems,
+          totalFormatted: data.totalFormatted || "",
+          currency: selectedCurrency,
+          gateway: "waitlist",
+          status: "Processing",
+          createdDate: new Date().toISOString()
+        };
+
+        setLastSubmissionMode("waitlist");
+        setAlreadyOnWaitlist(waitlistResult === "already-signed-up");
+        setPlacedReceiptOrder(newWaitlistPass);
+        setReceiptModalOpen(true);
+        setCheckoutDrawerOpen(false);
+        setCartDrawerOpen(false);
+        setCartItems([]);
+        return;
+      }
+
+      // Purchase Flow (First Month, Whole Year Bundle, or Cart)
       if (data.optInNewsletter) {
         saveNewsletter(data.recipientName || "Traveler", data.email.trim()).catch(e => console.warn(e));
       }
 
-      submitWaitlistEmail(data.email.trim()).catch(e => console.warn(e));
+      const hasSubscription = orderItems.some(i => i.isSubscription);
+      const completeRes = await saveCompleteOrder({
+        email: data.email,
+        recipientName: data.recipientName,
+        shipping_address: data.shipping_address,
+        destination: data.destination,
+        gateway: data.gateway,
+        items: orderItems,
+        totalFormatted: data.totalFormatted || "",
+        currency: selectedCurrency,
+      });
 
-      const passRef = `KOK-WL-${Math.floor(1000 + Math.random() * 9000)}`;
-      const newWaitlistPass: CustomerOrder = {
-        id: `wl_${Date.now()}`,
-        orderNumber: passRef,
-        trackingNumber: data.shippingMethod || "Batch 01 Priority",
+      const res = await fetch("/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.email,
+          recipientName: data.recipientName,
+          shipping_address: data.shipping_address,
+          destination: data.destination,
+          gateway: data.gateway,
+          items: orderItems,
+          totalFormatted: data.totalFormatted || "",
+          currency: selectedCurrency,
+          orderNumber: completeRes.orderNumber,
+          trackingNumber: completeRes.trackingNumber,
+          skipFirestoreWrite: Boolean(completeRes.persistedToFirestore),
+        })
+      });
+      const result = await res.json();
+
+      const orderNumber = result.orderNumber || completeRes.orderNumber;
+      const trackingNumber = result.trackingNumber || completeRes.trackingNumber;
+
+      const newPlacedOrder: CustomerOrder = {
+        id: `ord_${Date.now()}`,
+        orderNumber,
+        trackingNumber,
         email: data.email,
         recipientName: data.recipientName,
         shipping_address: data.shipping_address,
@@ -505,19 +573,28 @@ export default function App() {
         items: orderItems,
         totalFormatted: data.totalFormatted || "",
         currency: selectedCurrency,
-        gateway: "waitlist",
-        status: "Processing",
+        gateway: data.gateway,
+        status: hasSubscription ? "Active" : "Processing",
         createdDate: new Date().toISOString()
       };
 
-      setAlreadyOnWaitlist(waitlistResult === "already-signed-up");
-      setPlacedReceiptOrder(newWaitlistPass);
+      setLastSubmissionMode("purchase");
+      setAlreadyOnWaitlist(false);
+      setPlacedReceiptOrder(newPlacedOrder);
       setReceiptModalOpen(true);
       setCheckoutDrawerOpen(false);
       setCartDrawerOpen(false);
       setCartItems([]);
+
+      await fetchSession();
+      if (data.email) {
+        await fetchCustomerOrders(data.email);
+      }
+      if (hasSubscription) {
+        triggerUnlockAnimation("hokkaido");
+      }
     } catch (err: any) {
-      setActionNotice("Could not save your waitlist spot right now. Please try again.");
+      setActionNotice("Checkout notice: " + (err?.message || "Could not complete request. Please try again."));
       setTimeout(() => setActionNotice(null), 5000);
     } finally {
       setIsSubmittingCheckout(false);
@@ -782,7 +859,7 @@ export default function App() {
                 
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-[#eedba5] text-[11px] font-mono text-[#547365]">
                   <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Founding Batch 01 • Waitlist Open (No Charge Today)</span>
+                  <span>Founding Batch 01 • Month 1, Year Bundle &amp; Waitlist Open</span>
                 </div>
 
                 <h1 className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold text-[#1b2e24] max-w-3xl mx-auto leading-tight">
@@ -797,19 +874,29 @@ export default function App() {
                   <button
                     onClick={() => {
                       setPlanDestination("India");
-                      setDefaultCheckoutTier("Standard");
+                      setDefaultCheckoutSelection("first-month");
                       setCheckoutDrawerOpen(true);
                     }}
                     className="px-6 py-3.5 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-2xl text-xs md:text-sm font-serif font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                   >
-                    <span>Join Batch 01 Waitlist (Free)</span>
+                    <span>Start First Month or Year Bundle</span>
                     <ArrowRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPlanDestination("India");
+                      setDefaultCheckoutSelection("waitlist");
+                      setCheckoutDrawerOpen(true);
+                    }}
+                    className="px-6 py-3.5 bg-white border border-[#9cbfae] hover:bg-[#e3ece8]/40 text-[#1b2e24] rounded-2xl text-xs md:text-sm font-serif font-bold transition-all cursor-pointer"
+                  >
+                    Join Free Waitlist
                   </button>
                   <button
                     onClick={() => {
                       document.getElementById("tactile-unboxing-tray")?.scrollIntoView({ behavior: "smooth" });
                     }}
-                    className="px-6 py-3.5 bg-white border border-[#9cbfae] hover:bg-[#e3ece8]/40 text-[#1b2e24] rounded-2xl text-xs md:text-sm font-serif font-bold transition-all cursor-pointer"
+                    className="px-5 py-3.5 text-[#547365] hover:text-[#1b2e24] text-xs md:text-sm font-serif font-bold transition-all cursor-pointer"
                   >
                     Peek Inside a Dispatch
                   </button>
@@ -930,11 +1017,12 @@ export default function App() {
                     <button
                       onClick={() => {
                         setPlanDestination("India");
+                        setDefaultCheckoutSelection("first-month");
                         setCheckoutDrawerOpen(true);
                       }}
                       className="px-3 py-1 bg-[#9cbfae] text-[#1b2e24] rounded-lg text-xs font-serif font-bold hover:bg-[#86ab9a] transition-colors cursor-pointer"
                     >
-                      Join Waitlist to Unlock
+                      Unlock or Join Waitlist
                     </button>
                   )}
                 </div>
@@ -1069,12 +1157,13 @@ export default function App() {
                               <button
                                 onClick={() => {
                                   setPlanDestination("India");
+                                  setDefaultCheckoutSelection("first-month");
                                   setCheckoutDrawerOpen(true);
                                 }}
                                 className="w-full py-2.5 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-xl text-xs font-serif font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                               >
                                 <CreditCard className="w-3.5 h-3.5" />
-                                <span>Reserve Batch 01 Spot</span>
+                                <span>Unlock Passage or Waitlist</span>
                               </button>
                             ) : null}
                           </div>
@@ -1254,6 +1343,10 @@ export default function App() {
                   selectedCurrency={selectedCurrency}
                   onAddToCart={handleAddToCart}
                   onDirectSubscribe={handleDirectSubscribe}
+                  onJoinWaitlist={() => {
+                    setDefaultCheckoutSelection("waitlist");
+                    setCheckoutDrawerOpen(true);
+                  }}
                   onOpenCart={() => setCartDrawerOpen(true)}
                   cartCount={cartItems.reduce((acc, i) => acc + i.quantity, 0)}
                 />
@@ -1428,12 +1521,12 @@ export default function App() {
         }}
       />
 
-      {/* 2. Slide-Over Founding Waitlist / Reservation Drawer */}
+      {/* 2. Slide-Over Checkout & Waitlist Drawer */}
       <CheckoutDrawer
         isOpen={checkoutDrawerOpen}
         onClose={() => setCheckoutDrawerOpen(false)}
         defaultDestination={planDestination}
-        defaultTier={defaultCheckoutTier}
+        defaultSelection={defaultCheckoutSelection}
         selectedCurrency={selectedCurrency}
         cartItems={cartItems}
         onSubmit={handleDrawerCheckout}
@@ -1443,11 +1536,11 @@ export default function App() {
         onOpenTerms={() => setTermsModalOpen(true)}
       />
 
-      {/* 3. Founding Waitlist Pass / Confirmation Modal */}
+      {/* 3. Confirmation / Postal Manifest Modal */}
       <PostalReceiptModal
         order={placedReceiptOrder}
         isOpen={receiptModalOpen}
-        isWaitlistReservation={true}
+        isWaitlistReservation={lastSubmissionMode === "waitlist"}
         alreadyOnWaitlist={alreadyOnWaitlist}
         onClose={() => setReceiptModalOpen(false)}
         onViewJournal={() => {
