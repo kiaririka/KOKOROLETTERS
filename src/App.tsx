@@ -784,11 +784,11 @@ export default function App() {
                 </div>
 
                 <h1 className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold text-[#1b2e24] max-w-3xl mx-auto leading-tight">
-                  Monthly wax-sealed art &amp; lore letters from Japan’s Ghibli-inspired landscapes
+                  Step through the meadow into the spirit world
                 </h1>
 
                 <p className="text-sm md:text-base text-[#547365] max-w-2xl mx-auto leading-relaxed">
-                  Step through the meadow into a slower ritual. Each month, receive an illustrated art print, collectible region stamp, and creator lore letter—plus a foldout Japan map in Month 1 to chart all 12 scenic regions.
+                  Monthly wax-sealed art &amp; lore letters from Japan’s Ghibli-inspired landscapes &mdash; receive a scenic art print, collectible region stamp, and creator letter, plus a foldout Japan map in Month 1.
                 </p>
 
                 <div className="flex flex-wrap justify-center gap-3 pt-2">
