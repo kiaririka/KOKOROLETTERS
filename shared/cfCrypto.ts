@@ -70,7 +70,7 @@ async function verifyPayload<T extends { exp?: number }>(token: string, secret: 
 
 export function getAuthSecret(env: CfEnv): string | null {
   const secret = env.AUTH_SECRET?.trim();
-  return secret && secret.length >= 16 ? secret : null;
+  return secret && secret.length >= 6 ? secret : null;
 }
 
 export async function createMagicLinkToken(email: string, secret: string): Promise<string> {

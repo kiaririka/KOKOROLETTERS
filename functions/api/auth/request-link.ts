@@ -13,13 +13,13 @@ export const onRequestPost = async ({ request, env }: CfContext): Promise<Respon
 
     const secret = getAuthSecret(env);
     if (!secret) {
-      return jsonResponse(
-        {
-          success: false,
-          error: "Server configuration incomplete: AUTH_SECRET (min 16 chars) is missing in Cloudflare environment variables.",
-        },
-        500
-      );
+      const rawLen = env.AUTH_SECRET ? env.AUTH_SECRET.trim().length : 0;
+      const envKeys = Object.keys(env || {}).join(", ") || "none";
+      const reason =
+        rawLen > 0
+          ? `AUTH_SECRET is too short (${rawLen} chars; needs at least 6).`
+          : `AUTH_SECRET is missing from Cloudflare runtime env (loaded keys: ${envKeys}).`;
+      return jsonResponse({ success: false, error: reason }, 500);
     }
 
     const token = await createMagicLinkToken(email, secret);
