@@ -46,3 +46,29 @@ export interface UserSession {
   subscriber: Subscriber | null;
   unlocked_regions: string[];
 }
+
+export interface OrderLineItem {
+  productId: string;
+  name: string;
+  quantity: number;
+  priceFormatted: string;
+  isSubscription?: boolean;
+  image?: string;
+}
+
+export interface CustomerOrder {
+  id: string;
+  orderNumber: string;
+  email: string;
+  recipientName: string;
+  shipping_address: string;
+  destination: Destination;
+  items: OrderLineItem[];
+  totalFormatted: string;
+  currency: string;
+  gateway: 'razorpay' | 'paypal' | string;
+  status: 'Processing' | 'Dispatched' | 'Delivered' | 'Active';
+  trackingNumber: string;
+  createdDate: string;
+  createdAt?: any;
+}

@@ -10,7 +10,11 @@ import {
   AlertCircle,
   FileText,
   Sparkles,
-  Calendar
+  Calendar,
+  Package,
+  Truck,
+  CheckCircle2,
+  MapPin
 } from "lucide-react";
 import { 
   getAllOrders, 
@@ -79,7 +83,10 @@ export default function AdminDashboard() {
     loadData();
   };
 
-  const handleStatusChange = async (orderId: string, newStatus: "Active" | "Renewed" | "Cancelled") => {
+  const handleStatusChange = async (
+    orderId: string, 
+    newStatus: "Active" | "Renewed" | "Cancelled" | "Processing" | "Dispatched" | "Delivered"
+  ) => {
     setUpdatingId(orderId);
     try {
       const success = await updateOrderStatus(orderId, newStatus);
@@ -113,17 +120,20 @@ export default function AdminDashboard() {
 
   // Metric Calculations
   const subscribersThisMonth = orders.filter(o => o.status !== "Cancelled" && isCurrentMonth(o.createdDate, o.createdAt)).length;
-  const totalActiveSubscribers = orders.filter(o => o.status === "Active" || o.status === "Renewed" || o.status === "Submitted").length;
-  const renewedThisMonth = orders.filter(o => o.status === "Renewed").length;
+  const totalActiveSubscribers = orders.filter(o => o.status === "Active" || o.status === "Renewed" || o.status === "Submitted" || o.status === "Processing" || o.status === "Dispatched" || o.status === "Delivered").length;
+  const dispatchedCount = orders.filter(o => o.status === "Dispatched" || o.status === "Delivered").length;
   const droppedSubscribers = orders.filter(o => o.status === "Cancelled").length;
   const newsletterThisMonth = newsletters.filter(n => isCurrentMonth(n.createdDate, n.createdAt)).length;
   const totalNewsletter = newsletters.length;
 
   // Filtered lists for search
   const filteredOrders = orders.filter(o => 
-    o.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    o.shipping_address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    o.plan_tier.toLowerCase().includes(searchQuery.toLowerCase())
+    (o.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (o.recipientName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (o.orderNumber || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (o.trackingNumber || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (o.shipping_address || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (o.plan_tier || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredNewsletters = newsletters.filter(n =>
@@ -137,13 +147,17 @@ export default function AdminDashboard() {
       alert("No subscriber orders to export yet.");
       return;
     }
-    const headers = ["Email", "Status", "Cancellation Reason", "Plan Tier", "Shipping Address", "Gateway", "Date"];
+    const headers = ["Order #", "Tracking #", "Recipient", "Email", "Status", "Total", "Destination", "Plan / Items", "Shipping Address", "Gateway", "Date"];
     const rows = orders.map(o => [
+      `"${o.orderNumber || 'N/A'}"`,
+      `"${o.trackingNumber || 'N/A'}"`,
+      `"${(o.recipientName || '').replace(/"/g, '""')}"`,
       `"${o.email}"`,
       `"${o.status}"`,
-      `"${o.cancellation_reason || ''}"`,
-      `"${o.plan_tier}"`,
-      `"${o.shipping_address.replace(/"/g, '""')}"`,
+      `"${o.totalFormatted || ''}"`,
+      `"${o.destination || 'India'}"`,
+      `"${(o.items && o.items.length > 0 ? o.items.map(i => `${i.name} (x${i.quantity})`).join("; ") : o.plan_tier).replace(/"/g, '""')}"`,
+      `"${(o.shipping_address || '').replace(/"/g, '""')}"`,
       `"${o.gateway || 'Standard'}"`,
       `"${o.createdDate || 'N/A'}"`
     ]);
@@ -151,7 +165,7 @@ export default function AdminDashboard() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `kokoro_subscribers_${currentMonthName}_${currentYear}.csv`);
+    link.setAttribute("download", `kokoro_orders_${currentMonthName}_${currentYear}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -269,18 +283,18 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Card 3: Renewed for the Month */}
+        {/* Card 3: Dispatches / In Transit */}
         <div className="bg-white p-5 rounded-2xl border border-ghibli-green-light shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700 shrink-0">
-            <RefreshCw className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-700 shrink-0">
+            <Truck className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-ghibli-sage uppercase tracking-wider">Renewed (This Month)</p>
+            <p className="text-[11px] font-semibold text-ghibli-sage uppercase tracking-wider">Dispatches & Delivered</p>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-bold text-ghibli-green-dark font-mono">{renewedThisMonth}</span>
-              <span className="text-[10px] text-amber-700 font-mono">renewals</span>
+              <span className="text-2xl font-bold text-ghibli-green-dark font-mono">{dispatchedCount}</span>
+              <span className="text-[10px] text-purple-700 font-mono font-semibold">orders sent</span>
             </div>
-            <p className="text-[10px] text-amber-700 font-medium mt-0.5">🔄 Journey continued</p>
+            <p className="text-[10px] text-purple-700 font-medium mt-0.5">📦 Physical postal waybills</p>
           </div>
         </div>
 
@@ -351,83 +365,156 @@ export default function AdminDashboard() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-stone-50 text-stone-500 font-semibold uppercase tracking-wider border-b border-stone-200">
-                  <th className="px-6 py-3.5">Subscriber</th>
+                  <th className="px-6 py-3.5">Order & Traveler</th>
+                  <th className="px-6 py-3.5">Items & Plan</th>
+                  <th className="px-6 py-3.5">Destination & Shipping</th>
                   <th className="px-6 py-3.5">Status</th>
-                  <th className="px-6 py-3.5">Plan Tier</th>
-                  <th className="px-6 py-3.5">Fulfillment Address</th>
                   <th className="px-6 py-3.5">Date</th>
-                  <th className="px-6 py-3.5 text-right">Update Status</th>
+                  <th className="px-6 py-3.5 text-right">Fulfillment Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-stone-50/60 transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-stone-800">{order.email}</span>
-                      {order.gateway && (
-                        <span className="block text-[10px] text-stone-400 font-mono mt-0.5">via {order.gateway}</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
-                        order.status === "Renewed" ? "bg-amber-100 text-amber-800 border border-amber-200" :
-                        order.status === "Active" || order.status === "Submitted" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" :
-                        "bg-rose-100 text-rose-800 border border-rose-200"
-                      }`}>
-                        {order.status === "Renewed" && <RefreshCw className="w-2.5 h-2.5" />}
-                        {order.status === "Active" && <Check className="w-2.5 h-2.5" />}
-                        {order.status === "Cancelled" && <AlertCircle className="w-2.5 h-2.5" />}
-                        <span>{order.status || "Active"}</span>
-                      </span>
-                      {order.cancellation_reason && (
-                        <span className="block text-[10px] text-rose-700 font-mono mt-1 font-medium bg-rose-50 px-2 py-0.5 rounded border border-rose-100 max-w-fit">
-                          Reason: {order.cancellation_reason}
+                {filteredOrders.map((order) => {
+                  const hasItems = order.items && order.items.length > 0;
+                  return (
+                    <tr key={order.id} className="hover:bg-stone-50/60 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-mono text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            {order.orderNumber || `KOK-${order.id.slice(0, 4).toUpperCase()}`}
+                          </span>
+                        </div>
+                        <div className="font-semibold text-stone-800">{order.recipientName || "Traveler"}</div>
+                        <div className="text-[11px] text-stone-500">{order.email}</div>
+                        {order.gateway && (
+                          <span className="inline-block text-[10px] text-stone-400 font-mono mt-0.5">via {order.gateway}</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {hasItems ? (
+                          <div className="space-y-1">
+                            <span className="font-bold text-stone-800 font-mono text-[11px]">
+                              {order.totalFormatted || (order.items && `${order.items.length} items`)}
+                            </span>
+                            <div className="text-[11px] text-stone-600 max-w-xs space-y-0.5">
+                              {order.items?.map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-1.5 text-stone-700">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                  <span className="truncate">{item.name}</span>
+                                  <span className="text-stone-400 font-mono text-[10px]">×{item.quantity}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="font-semibold text-stone-700">{order.plan_tier || "India"} Plan</span>
+                            {order.totalFormatted && (
+                              <span className="block text-[11px] font-mono text-emerald-700 font-bold mt-0.5">{order.totalFormatted}</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 max-w-xs">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                            order.destination === 'International' 
+                              ? "bg-sky-50 text-sky-800 border-sky-200" 
+                              : "bg-amber-50 text-amber-800 border-amber-200"
+                          }`}>
+                            {order.destination === 'International' ? '✈️ Tokyo Airmail' : '📮 India Speed-Post'}
+                          </span>
+                        </div>
+                        {order.trackingNumber && (
+                          <div className="font-mono text-[10px] text-stone-500 mb-1">
+                            Tracking: <span className="font-bold text-stone-700">{order.trackingNumber}</span>
+                          </div>
+                        )}
+                        <p className="text-[11px] text-stone-500 line-clamp-2" title={order.shipping_address}>
+                          {order.shipping_address || "No address provided"}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
+                          order.status === "Delivered" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" :
+                          order.status === "Dispatched" ? "bg-purple-100 text-purple-800 border border-purple-200" :
+                          order.status === "Processing" ? "bg-blue-100 text-blue-800 border border-blue-200" :
+                          order.status === "Renewed" ? "bg-amber-100 text-amber-800 border border-amber-200" :
+                          order.status === "Active" || order.status === "Submitted" ? "bg-emerald-50 text-emerald-800 border border-emerald-200" :
+                          "bg-rose-100 text-rose-800 border border-rose-200"
+                        }`}>
+                          {order.status === "Delivered" && <CheckCircle2 className="w-2.5 h-2.5" />}
+                          {order.status === "Dispatched" && <Truck className="w-2.5 h-2.5" />}
+                          {order.status === "Processing" && <Package className="w-2.5 h-2.5" />}
+                          {order.status === "Renewed" && <RefreshCw className="w-2.5 h-2.5" />}
+                          {order.status === "Active" && <Check className="w-2.5 h-2.5" />}
+                          {order.status === "Cancelled" && <AlertCircle className="w-2.5 h-2.5" />}
+                          <span>{order.status || "Active"}</span>
                         </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-stone-600 font-medium">{order.plan_tier || "India"} Tier</td>
-                    <td className="px-6 py-4 max-w-xs text-stone-500 truncate" title={order.shipping_address}>
-                      {order.shipping_address || "No address provided"}
-                    </td>
-                    <td className="px-6 py-4 text-stone-400 font-mono text-[11px]">
-                      {order.createdDate ? new Date(order.createdDate).toLocaleDateString() : "Recent"}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="inline-flex items-center gap-1 bg-stone-100 p-1 rounded-xl">
-                        <button
-                          onClick={() => handleStatusChange(order.id, "Active")}
-                          disabled={updatingId === order.id}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
-                            order.status === "Active" ? "bg-white text-emerald-800 shadow-xs" : "text-stone-500 hover:text-stone-800"
-                          }`}
-                          title="Mark Active"
-                        >
-                          Active
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(order.id, "Renewed")}
-                          disabled={updatingId === order.id}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
-                            order.status === "Renewed" ? "bg-white text-amber-800 shadow-xs" : "text-stone-500 hover:text-stone-800"
-                          }`}
-                          title="Mark Renewed for this month"
-                        >
-                          Renewed
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(order.id, "Cancelled")}
-                          disabled={updatingId === order.id}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
-                            order.status === "Cancelled" ? "bg-white text-rose-800 shadow-xs" : "text-stone-500 hover:text-rose-700"
-                          }`}
-                          title="Mark Dropped / Cancelled"
-                        >
-                          Drop
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        {order.cancellation_reason && (
+                          <span className="block text-[10px] text-rose-700 font-mono mt-1 font-medium bg-rose-50 px-2 py-0.5 rounded border border-rose-100 max-w-fit">
+                            Reason: {order.cancellation_reason}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-stone-400 font-mono text-[11px]">
+                        {order.createdDate ? new Date(order.createdDate).toLocaleDateString() : "Recent"}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="inline-flex flex-wrap items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleStatusChange(order.id, "Processing")}
+                            disabled={updatingId === order.id}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors border ${
+                              order.status === "Processing" 
+                                ? "bg-blue-600 text-white border-blue-600 shadow-xs" 
+                                : "bg-white text-stone-600 hover:text-stone-900 border-stone-200"
+                            }`}
+                            title="Mark Processing"
+                          >
+                            Pack
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(order.id, "Dispatched")}
+                            disabled={updatingId === order.id}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors border ${
+                              order.status === "Dispatched" 
+                                ? "bg-purple-600 text-white border-purple-600 shadow-xs" 
+                                : "bg-white text-purple-700 hover:bg-purple-50 border-purple-200"
+                            }`}
+                            title="Mark Dispatched with Waybill"
+                          >
+                            Dispatch
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(order.id, "Delivered")}
+                            disabled={updatingId === order.id}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors border ${
+                              order.status === "Delivered" 
+                                ? "bg-emerald-600 text-white border-emerald-600 shadow-xs" 
+                                : "bg-white text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                            }`}
+                            title="Mark Delivered"
+                          >
+                            Deliver
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(order.id, "Cancelled")}
+                            disabled={updatingId === order.id}
+                            className={`px-1.5 py-1 rounded-lg text-[10px] font-semibold transition-colors border ${
+                              order.status === "Cancelled" 
+                                ? "bg-rose-600 text-white border-rose-600 shadow-xs" 
+                                : "bg-white text-rose-600 hover:bg-rose-50 border-rose-200"
+                            }`}
+                            title="Cancel Order"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {filteredOrders.length === 0 && (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-stone-400">

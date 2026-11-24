@@ -30,7 +30,8 @@ import {
   Award,
   Globe,
   Settings,
-  ShoppingBag
+  ShoppingBag,
+  Package
 } from "lucide-react";
 
 import JapanMap from "./components/JapanMap.tsx";
@@ -45,12 +46,16 @@ import PostcardWhispers from "./components/PostcardWhispers.tsx";
 import AmbientCompassBar from "./components/AmbientCompassBar.tsx";
 import StoreFront from "./components/StoreFront.tsx";
 import CartDrawer, { CartItem } from "./components/CartDrawer.tsx";
+import PostalReceiptModal from "./components/PostalReceiptModal.tsx";
+import OrderHistoryView from "./components/OrderHistoryView.tsx";
 
 import { submitWaitlistEmail } from "./waitlist.ts";
 import { 
   saveWaitlist, 
   saveNewsletter, 
   saveOrder, 
+  saveCompleteOrder,
+  getCustomerOrders,
   isEmailInNewsletter,
   updateUserPlan,
   cancelSubscription,
@@ -65,7 +70,7 @@ import {
   detectLocalCurrency, 
   getPlanPriceString 
 } from "./currencyService.ts";
-import { Region, Subscriber, PlanTier, SubscriptionStatus } from "./types.ts";
+import { Region, Subscriber, PlanTier, SubscriptionStatus, CustomerOrder } from "./types.ts";
 import { REGIONS_METADATA, LORE_DATA, getRegionMonthStatus, MonthStatus, getCurrentMonthNumber, getMonthName } from "./data/lore.ts";
 import { StoreProduct, STORE_PRODUCTS } from "./data/storeProducts.ts";
 
@@ -74,12 +79,17 @@ export const ADMIN_EMAILS = [
   "isha79799@gmail"
 ];
 
+const CART_STORAGE_KEY = "kokoro_cart_v1";
+
 export default function App() {
   // Navigation: Voyage | Travel Journal | Store | Whispers | Admin
   const [activeTab, setActiveTab] = useState<"journey" | "journal" | "store" | "newsletter" | "admin">("journey");
   
   // Journal Sub-view: Map vs Goshuincho Stamp Book
   const [journalSubView, setJournalSubView] = useState<"map" | "stampbook">("map");
+
+  // Store Sub-view: Catalog vs Order History
+  const [storeSubView, setStoreSubView] = useState<"boutique" | "orders">("boutique");
 
   // Session & Regions State
   const [session, setSession] = useState<{
@@ -101,11 +111,23 @@ export default function App() {
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingRegions, setLoadingRegions] = useState(true);
 
-  // E-Commerce & Currency State
+  // E-Commerce & Persistent Cart State
   const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>("USD");
   const [planDestination, setPlanDestination] = useState<"India" | "International">("India");
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(CART_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+
+  // Customer Orders history & Receipt modal
+  const [customerOrders, setCustomerOrders] = useState<CustomerOrder[]>([]);
+  const [placedReceiptOrder, setPlacedReceiptOrder] = useState<CustomerOrder | null>(null);
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 
   // Modals & Drawers
   const [readingModalOpen, setReadingModalOpen] = useState(false);
@@ -149,6 +171,15 @@ export default function App() {
     }, 3200);
   };
 
+  // Sync Cart items to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+    } catch (e) {
+      console.warn("Failed to save cart to localStorage", e);
+    }
+  }, [cartItems]);
+
   // Auto-detect visitor's local currency
   useEffect(() => {
     const detected = detectLocalCurrency();
@@ -170,6 +201,37 @@ export default function App() {
       }
     };
   }, []);
+
+  // Fetch customer order history whenever user logs in
+  const fetchCustomerOrders = async (email: string) => {
+    try {
+      const orders = await getCustomerOrders(email);
+      if (orders && orders.length > 0) {
+        setCustomerOrders(orders);
+        return;
+      }
+    } catch (err) {
+      console.warn("Firestore customer orders notice:", err);
+    }
+
+    try {
+      const res = await fetch("/api/orders/user");
+      const data = await res.json();
+      if (data.success && data.orders) {
+        setCustomerOrders(data.orders);
+      }
+    } catch (e) {
+      console.warn("Preview customer orders notice:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.email) {
+      fetchCustomerOrders(session.email);
+    } else {
+      setCustomerOrders([]);
+    }
+  }, [session?.email]);
 
   // Redirect to Travel Journal on login success
   useEffect(() => {
@@ -367,6 +429,7 @@ export default function App() {
   };
 
   const handleDrawerCheckout = async (data: {
+    recipientName: string;
     email: string;
     shipping_address: string;
     plan_tier: "Standard" | "Bundle";
@@ -374,6 +437,14 @@ export default function App() {
     gateway: "razorpay" | "paypal";
     optInNewsletter: boolean;
     acceptTerms: boolean;
+    items?: Array<{
+      productId: string;
+      name: string;
+      quantity: number;
+      priceFormatted: string;
+      isSubscription?: boolean;
+    }>;
+    totalFormatted?: string;
   }) => {
     setIsSubmittingCheckout(true);
 
@@ -382,42 +453,73 @@ export default function App() {
     }
 
     try {
-      const res = await fetch("/api/checkout/direct", {
+      const orderItems = data.items || [];
+      const hasSubscription = orderItems.some(i => i.isSubscription);
+
+      // 1. Save complete order to Firestore
+      const completeRes = await saveCompleteOrder({
+        email: data.email,
+        recipientName: data.recipientName,
+        shipping_address: data.shipping_address,
+        destination: data.destination,
+        gateway: data.gateway,
+        items: orderItems,
+        totalFormatted: data.totalFormatted || "",
+        currency: selectedCurrency,
+      });
+
+      // 2. Also dispatch to backend / preview API
+      const res = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: data.email,
-          plan_tier: data.plan_tier,
+          recipientName: data.recipientName,
           shipping_address: data.shipping_address,
-          gateway: data.gateway
+          destination: data.destination,
+          gateway: data.gateway,
+          items: orderItems,
+          totalFormatted: data.totalFormatted || "",
+          currency: selectedCurrency,
         })
       });
       const result = await res.json();
-      if (result.success) {
-        const fullTierName = `${data.plan_tier} (${data.destination})`;
-        saveOrder({
-          email: data.email,
-          plan_tier: fullTierName,
-          destination: data.destination,
-          shipping_address: data.shipping_address,
-          gateway: data.gateway
-        }).catch(e => console.warn("Firestore saveOrder error:", e));
 
-        setCheckoutDrawerOpen(false);
-        setCartDrawerOpen(false);
-        setCartItems([]);
-        alert(import.meta.env.VITE_PREVIEW === "true"
-          ? "🌿 Preview mode: no real payment was taken. You are signed in to a demo account so you can explore your travel journal."
-          : `🌿 Welcome to Kokoro Letters!\n\nYour payment via ${data.gateway === "razorpay" ? "Razorpay" : "PayPal"} succeeded. Enjoy exploring your travel journal!`);
-        await fetchSession();
-        setActiveRegionId("hokkaido");
-        setActiveTab("journal");
+      const orderNumber = result.orderNumber || completeRes.orderNumber;
+      const trackingNumber = result.trackingNumber || completeRes.trackingNumber;
+
+      const newPlacedOrder: CustomerOrder = {
+        id: `ord_${Date.now()}`,
+        orderNumber,
+        trackingNumber,
+        email: data.email,
+        recipientName: data.recipientName,
+        shipping_address: data.shipping_address,
+        destination: data.destination,
+        items: orderItems,
+        totalFormatted: data.totalFormatted || "",
+        currency: selectedCurrency,
+        gateway: data.gateway,
+        status: hasSubscription ? "Active" : "Processing",
+        createdDate: new Date().toISOString()
+      };
+
+      // Set order confirmation receipt modal
+      setPlacedReceiptOrder(newPlacedOrder);
+      setReceiptModalOpen(true);
+      setCheckoutDrawerOpen(false);
+      setCartDrawerOpen(false);
+      setCartItems([]);
+
+      await fetchSession();
+      if (data.email) {
+        await fetchCustomerOrders(data.email);
+      }
+      if (hasSubscription) {
         triggerUnlockAnimation("hokkaido");
-      } else {
-        alert(result.error || "Failed to complete checkout.");
       }
     } catch (err: any) {
-      alert("Network error: " + err.message);
+      alert("Checkout error: " + err.message);
     } finally {
       setIsSubmittingCheckout(false);
     }
@@ -427,6 +529,7 @@ export default function App() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
       setSession({ authenticated: false, subscriber: null, unlocked_regions: [] });
+      setCustomerOrders([]);
     } catch (err) {
       console.error("Logout error:", err);
     }
@@ -1034,6 +1137,47 @@ export default function App() {
               transition={{ duration: 0.25 }}
               className="space-y-12"
             >
+              {/* Store Sub-Navigation (Boutique Catalog vs My Orders) */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/80 p-2 md:p-3 rounded-2xl border border-[#e3ece8] shadow-xs">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setStoreSubView("boutique")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-serif transition-all cursor-pointer ${
+                      storeSubView === "boutique"
+                        ? "bg-[#1b2e24] text-white font-bold shadow-xs"
+                        : "text-[#547365] hover:text-[#1b2e24] hover:bg-stone-100"
+                    }`}
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>Curated Treasures & Passages</span>
+                  </button>
+
+                  <button
+                    onClick={() => setStoreSubView("orders")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-serif transition-all cursor-pointer ${
+                      storeSubView === "orders"
+                        ? "bg-[#1b2e24] text-white font-bold shadow-xs"
+                        : "text-[#547365] hover:text-[#1b2e24] hover:bg-stone-100"
+                    }`}
+                  >
+                    <Package className="w-3.5 h-3.5" />
+                    <span>My Dispatches & Orders ({customerOrders.length})</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 px-3">
+                  <span className="text-[11px] font-mono text-[#547365]">
+                    Satchel: {cartItems.reduce((acc, i) => acc + i.quantity, 0)} items
+                  </span>
+                  <button
+                    onClick={() => setCartDrawerOpen(true)}
+                    className="px-3 py-1 bg-[#9cbfae] text-[#1b2e24] rounded-lg text-xs font-serif font-bold hover:bg-[#86ab9a] transition-colors cursor-pointer"
+                  >
+                    View Satchel
+                  </button>
+                </div>
+              </div>
+
               {/* If Active Member: The Traveler's Passport Card */}
               {session?.authenticated && isSubscriberActive ? (
                 <div className="bg-[#faf6eb] border-2 border-[#eedba5] rounded-3xl p-8 max-w-3xl mx-auto vintage-shadow space-y-6 text-left">
@@ -1103,16 +1247,26 @@ export default function App() {
                 </div>
               ) : null}
 
-              {/* Full E-Commerce Boutique Storefront Component */}
-              <StoreFront
-                destination={planDestination}
-                onToggleDestination={setPlanDestination}
-                selectedCurrency={selectedCurrency}
-                onAddToCart={handleAddToCart}
-                onDirectSubscribe={handleDirectSubscribe}
-                onOpenCart={() => setCartDrawerOpen(true)}
-                cartCount={cartItems.reduce((acc, i) => acc + i.quantity, 0)}
-              />
+              {/* Sub-View 1: Catalog */}
+              {storeSubView === "boutique" && (
+                <StoreFront
+                  destination={planDestination}
+                  onToggleDestination={setPlanDestination}
+                  selectedCurrency={selectedCurrency}
+                  onAddToCart={handleAddToCart}
+                  onDirectSubscribe={handleDirectSubscribe}
+                  onOpenCart={() => setCartDrawerOpen(true)}
+                  cartCount={cartItems.reduce((acc, i) => acc + i.quantity, 0)}
+                />
+              )}
+
+              {/* Sub-View 2: Customer Order & Dispatch History */}
+              {storeSubView === "orders" && (
+                <OrderHistoryView
+                  orders={customerOrders}
+                  onOpenStore={() => setStoreSubView("boutique")}
+                />
+              )}
 
               {/* Already a Member: Clean Magic Link Card */}
               {!session?.authenticated && (
@@ -1262,6 +1416,7 @@ export default function App() {
         defaultDestination={planDestination}
         defaultTier="Standard"
         selectedCurrency={selectedCurrency}
+        cartItems={cartItems}
         onSubmit={handleDrawerCheckout}
         isSubmitting={isSubmittingCheckout}
         existingEmail={session?.email || ""}
@@ -1269,7 +1424,18 @@ export default function App() {
         onOpenTerms={() => setTermsModalOpen(true)}
       />
 
-      {/* 3. Reading Parchment Modal */}
+      {/* 3. Official Postal Manifest / Receipt Modal */}
+      <PostalReceiptModal
+        order={placedReceiptOrder}
+        isOpen={receiptModalOpen}
+        onClose={() => setReceiptModalOpen(false)}
+        onViewJournal={() => {
+          setActiveTab("journal");
+          setReceiptModalOpen(false);
+        }}
+      />
+
+      {/* 4. Reading Parchment Modal */}
       <ReadingParchmentModal
         region={activeRegion || null}
         isOpen={readingModalOpen}
@@ -1282,7 +1448,7 @@ export default function App() {
         isSubscriber={isSubscriberActive}
       />
 
-      {/* 4. Magic Link Sign-in Modal */}
+      {/* 5. Magic Link Sign-in Modal */}
       <AnimatePresence>
         {authModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -1382,7 +1548,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 5. Terms & Conditions Modal */}
+      {/* 6. Terms & Conditions Modal */}
       <AnimatePresence>
         {termsModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -1453,7 +1619,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 6. Change Plan Modal */}
+      {/* 7. Change Plan Modal */}
       <AnimatePresence>
         {changePlanModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -1522,7 +1688,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 7. Edit Address Modal */}
+      {/* 8. Edit Address Modal */}
       <AnimatePresence>
         {editAddressModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -1572,7 +1738,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 8. Cancel Subscription Modal */}
+      {/* 9. Cancel Subscription Modal */}
       <AnimatePresence>
         {cancelModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">

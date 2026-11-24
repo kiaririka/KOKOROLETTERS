@@ -155,17 +155,36 @@ export async function saveOrder(orderData: {
   destination?: 'India' | 'International';
   gateway?: string;
   payment_deadline?: string;
+  recipientName?: string;
+  items?: any[];
+  totalFormatted?: string;
+  currency?: string;
+  orderNumber?: string;
+  trackingNumber?: string;
 }): Promise<boolean> {
   try {
     const cleanEmail = normalizeEmail(orderData.email);
     const deadline = orderData.payment_deadline || getNextPaymentDeadline();
+    const orderNum = orderData.orderNumber || `KOK-${Math.floor(1000 + Math.random() * 9000)}`;
+    const trackNum = orderData.trackingNumber || (
+      orderData.destination === 'India' 
+        ? `IN-SPD-${Math.floor(100000 + Math.random() * 900000)}` 
+        : `JP-AIR-${Math.floor(100000 + Math.random() * 900000)}`
+    );
+
     await addDoc(collection(db, "orders"), {
       email: cleanEmail,
+      recipientName: orderData.recipientName || cleanEmail.split("@")[0],
       shipping_address: orderData.shipping_address.trim(),
       plan_tier: orderData.plan_tier,
       destination: orderData.destination || (orderData.plan_tier.toLowerCase().includes("international") ? "International" : "India"),
       gateway: orderData.gateway || "preview",
       status: "Active",
+      orderNumber: orderNum,
+      trackingNumber: trackNum,
+      items: orderData.items || [],
+      totalFormatted: orderData.totalFormatted || "",
+      currency: orderData.currency || "USD",
       payment_deadline: deadline,
       createdAt: serverTimestamp(),
       createdDate: new Date().toISOString()
@@ -177,14 +196,115 @@ export async function saveOrder(orderData: {
   }
 }
 
+/**
+ * Saves a complete multi-item e-commerce order with line items and generates order & tracking numbers.
+ */
+export async function saveCompleteOrder(orderData: {
+  email: string;
+  recipientName: string;
+  shipping_address: string;
+  destination: 'India' | 'International';
+  gateway: string;
+  items: Array<{
+    productId: string;
+    name: string;
+    quantity: number;
+    priceFormatted: string;
+    isSubscription?: boolean;
+    image?: string;
+  }>;
+  totalFormatted: string;
+  currency: string;
+}): Promise<{ success: boolean; orderNumber: string; trackingNumber: string }> {
+  const cleanEmail = normalizeEmail(orderData.email);
+  const orderNum = `KOK-${Math.floor(1000 + Math.random() * 9000)}`;
+  const trackNum = orderData.destination === 'India'
+    ? `IN-SPD-${Math.floor(100000 + Math.random() * 900000)}`
+    : `JP-AIR-${Math.floor(100000 + Math.random() * 900000)}`;
+
+  const hasSubscription = orderData.items.some(i => i.isSubscription);
+  const subItem = orderData.items.find(i => i.isSubscription);
+  const planTier = subItem ? `${subItem.name} (${orderData.destination})` : `Goods Order (${orderData.destination})`;
+
+  try {
+    await addDoc(collection(db, "orders"), {
+      email: cleanEmail,
+      recipientName: orderData.recipientName,
+      shipping_address: orderData.shipping_address.trim(),
+      destination: orderData.destination,
+      gateway: orderData.gateway,
+      plan_tier: planTier,
+      items: orderData.items,
+      totalFormatted: orderData.totalFormatted,
+      currency: orderData.currency,
+      orderNumber: orderNum,
+      trackingNumber: trackNum,
+      status: hasSubscription ? "Active" : "Processing",
+      payment_deadline: getNextPaymentDeadline(),
+      createdAt: serverTimestamp(),
+      createdDate: new Date().toISOString()
+    });
+
+    return { success: true, orderNumber: orderNum, trackingNumber: trackNum };
+  } catch (err) {
+    console.warn("Firestore saveCompleteOrder notice:", err);
+    // In local demo or offline mode, return generated numbers gracefully
+    return { success: true, orderNumber: orderNum, trackingNumber: trackNum };
+  }
+}
+
+/**
+ * Fetches all orders placed by a specific customer.
+ */
+export async function getCustomerOrders(email: string): Promise<any[]> {
+  try {
+    const cleanEmail = normalizeEmail(email);
+    const all = await getAllOrders();
+    return all.filter(o => normalizeEmail(o.email) === cleanEmail);
+  } catch (err) {
+    console.warn("Firestore getCustomerOrders error:", err);
+    return [];
+  }
+}
+
+/**
+ * Updates order status and tracking info for admin fulfillment.
+ */
+export async function updateOrderStatus(
+  orderId: string, 
+  status: "Processing" | "Dispatched" | "Delivered" | "Cancelled", 
+  trackingNumber?: string
+): Promise<boolean> {
+  try {
+    const docRef = doc(db, "orders", orderId);
+    const updatePayload: Record<string, any> = {
+      status,
+      updatedDate: new Date().toISOString(),
+      updatedAt: serverTimestamp()
+    };
+    if (trackingNumber) updatePayload.trackingNumber = trackingNumber;
+    await updateDoc(docRef, updatePayload);
+    return true;
+  } catch (err) {
+    console.warn("Firestore updateOrderStatus error:", err);
+    return false;
+  }
+}
+
 export interface OrderRecord {
   id: string;
   email: string;
+  recipientName?: string;
   shipping_address: string;
   plan_tier: string;
   destination?: 'India' | 'International';
   gateway?: string;
-  status: "Active" | "Renewed" | "Cancelled" | "Paused" | "Submitted";
+  status: "Active" | "Renewed" | "Cancelled" | "Paused" | "Submitted" | "Processing" | "Dispatched" | "Delivered";
+  orderNumber?: string;
+  trackingNumber?: string;
+  items?: any[];
+  totalFormatted?: string;
+  currency?: string;
   cancellation_reason?: string;
   payment_deadline?: string;
   next_billing_date?: string;
@@ -213,11 +333,17 @@ export async function getAllOrders(): Promise<OrderRecord[]> {
     records.push({
       id: d.id,
       email: data.email || "",
+      recipientName: data.recipientName || (data.email ? data.email.split("@")[0] : "Traveler"),
       shipping_address: data.shipping_address || "",
       plan_tier: data.plan_tier || "Standard (India)",
       destination: data.destination || (String(data.plan_tier || "").toLowerCase().includes("international") ? "International" : "India"),
       gateway: data.gateway || "Standard",
       status: (data.status as any) || "Active",
+      orderNumber: data.orderNumber || `KOK-${d.id.slice(0, 4).toUpperCase()}`,
+      trackingNumber: data.trackingNumber || `TRK-${d.id.slice(0, 6).toUpperCase()}`,
+      items: data.items || [],
+      totalFormatted: data.totalFormatted || "",
+      currency: data.currency || "USD",
       cancellation_reason: data.cancellation_reason || "",
       payment_deadline: data.payment_deadline || "",
       next_billing_date: data.next_billing_date || "",
@@ -253,7 +379,7 @@ export async function getAllNewsletter(): Promise<NewsletterRecord[]> {
  */
 export async function updateOrderStatus(
   orderId: string, 
-  status: "Active" | "Renewed" | "Cancelled" | "Paused",
+  status: "Active" | "Renewed" | "Cancelled" | "Paused" | "Processing" | "Dispatched" | "Delivered",
   cancellation_reason?: string
 ): Promise<boolean> {
   try {

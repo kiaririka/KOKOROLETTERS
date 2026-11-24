@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, CreditCard, ShieldCheck, RefreshCw, CheckCircle2, ArrowRight } from "lucide-react";
+import { X, CreditCard, ShieldCheck, RefreshCw, CheckCircle2, ArrowRight, Package } from "lucide-react";
 import { SupportedCurrency, getPlanPriceString } from "../currencyService.ts";
+import { CartItem } from "./CartDrawer.tsx";
+import { formatProductPrice } from "../data/storeProducts.ts";
 
 interface CheckoutDrawerProps {
   isOpen: boolean;
@@ -9,7 +11,9 @@ interface CheckoutDrawerProps {
   defaultDestination: "India" | "International";
   defaultTier: "Standard" | "Bundle";
   selectedCurrency: SupportedCurrency;
+  cartItems?: CartItem[];
   onSubmit: (data: {
+    recipientName: string;
     email: string;
     shipping_address: string;
     plan_tier: "Standard" | "Bundle";
@@ -17,6 +21,14 @@ interface CheckoutDrawerProps {
     gateway: "razorpay" | "paypal";
     optInNewsletter: boolean;
     acceptTerms: boolean;
+    items?: Array<{
+      productId: string;
+      name: string;
+      quantity: number;
+      priceFormatted: string;
+      isSubscription?: boolean;
+    }>;
+    totalFormatted?: string;
   }) => Promise<void>;
   isSubmitting: boolean;
   existingEmail?: string;
@@ -30,6 +42,7 @@ export default function CheckoutDrawer({
   defaultDestination,
   defaultTier,
   selectedCurrency,
+  cartItems = [],
   onSubmit,
   isSubmitting,
   existingEmail = "",
@@ -38,6 +51,7 @@ export default function CheckoutDrawer({
 }: CheckoutDrawerProps) {
   const [destination, setDestination] = useState<"India" | "International">(defaultDestination);
   const [tier, setTier] = useState<"Standard" | "Bundle">(defaultTier);
+  const [recipientName, setRecipientName] = useState("");
   const [email, setEmail] = useState(existingEmail);
   const [address, setAddress] = useState(existingAddress);
   const [gateway, setGateway] = useState<"razorpay" | "paypal">(defaultDestination === "India" ? "razorpay" : "paypal");
@@ -45,6 +59,8 @@ export default function CheckoutDrawer({
   const [acceptTerms, setAcceptTerms] = useState(true);
 
   if (!isOpen) return null;
+
+  const hasCart = cartItems.length > 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,14 +72,36 @@ export default function CheckoutDrawer({
       alert("Please accept the Terms & Conditions to complete your passage.");
       return;
     }
+
+    const compiledItems = hasCart
+      ? cartItems.map((ci) => ({
+          productId: ci.product.id,
+          name: ci.product.name,
+          quantity: ci.quantity,
+          priceFormatted: formatProductPrice(ci.product, destination, selectedCurrency),
+          isSubscription: ci.product.isSubscription,
+        }))
+      : [
+          {
+            productId: tier === "Bundle" ? "sub-annual" : "sub-monthly",
+            name: tier === "Bundle" ? "12-Moon Annual Expedition Bundle" : "The Monthly Passage",
+            quantity: 1,
+            priceFormatted: getPlanPriceString(tier, destination, selectedCurrency),
+            isSubscription: true,
+          },
+        ];
+
     onSubmit({
-      email,
-      shipping_address: address,
+      recipientName: recipientName.trim() || email.split("@")[0],
+      email: email.trim(),
+      shipping_address: address.trim(),
       plan_tier: tier,
       destination,
       gateway,
       optInNewsletter,
       acceptTerms,
+      items: compiledItems,
+      totalFormatted: hasCart ? `${cartItems.length} treasures` : getPlanPriceString(tier, destination, selectedCurrency),
     });
   };
 
@@ -86,15 +124,15 @@ export default function CheckoutDrawer({
           <div className="p-6 border-b border-[#eedba5] flex items-center justify-between bg-white/80 backdrop-blur-xs sticky top-0 z-20">
             <div>
               <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#547365] bg-[#e3ece8] px-2.5 py-0.5 rounded-full">
-                🌿 Kokoro Letters Passage
+                🌿 Kokoro Postal Checkout
               </span>
               <h3 className="font-serif font-bold text-xl text-[#1b2e24] mt-1">
-                Begin Your Snail Mail Passage
+                {hasCart ? "Seal & Dispatch Your Satchel" : "Begin Your Snail Mail Passage"}
               </h3>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-500 transition-colors"
+              className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-500 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -102,10 +140,74 @@ export default function CheckoutDrawer({
 
           {/* Form Content */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6 flex-1 text-left">
-            {/* Step 1: Destination Selector */}
+            {/* If Cart Items are present: Show Cart Summary */}
+            {hasCart ? (
+              <div className="space-y-2">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24] block">
+                  Items in this Dispatch ({cartItems.length})
+                </span>
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  {cartItems.map((ci, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-white p-3 rounded-xl border border-[#eedba5] flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Package className="w-3.5 h-3.5 text-stone-600 shrink-0" />
+                        <span className="font-serif font-bold text-[#1b2e24] truncate">
+                          {ci.product.name}
+                        </span>
+                        <span className="text-[10px] text-stone-500 font-mono">x{ci.quantity}</span>
+                      </div>
+                      <span className="font-serif font-bold text-xs text-[#1b2e24]">
+                        {formatProductPrice(ci.product, destination, selectedCurrency)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Step 2: Tier Selector (Monthly vs 12-Month Bundle) */
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24]">
+                  1. Membership Passage
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTier("Standard")}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      tier === "Standard"
+                        ? "bg-white border-[#9cbfae] ring-2 ring-[#9cbfae]/40 shadow-xs"
+                        : "bg-white/40 border-stone-200 opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <span className="text-[10px] font-mono text-[#547365] block">Monthly</span>
+                    <span className="font-serif font-bold text-sm text-[#1b2e24] block">Standard</span>
+                    <span className="font-serif font-bold text-xs text-emerald-800">{standardPrice}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTier("Bundle")}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      tier === "Bundle"
+                        ? "bg-white border-[#9cbfae] ring-2 ring-[#9cbfae]/40 shadow-xs"
+                        : "bg-white/40 border-stone-200 opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <span className="text-[10px] font-mono text-emerald-700 font-bold block">12 Moons</span>
+                    <span className="font-serif font-bold text-sm text-[#1b2e24] block">Annual Bundle</span>
+                    <span className="font-serif font-bold text-xs text-amber-900">{bundlePrice}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Destination Selector */}
             <div className="space-y-2">
               <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24]">
-                1. Shipping Destination
+                Shipping Hub & Customs Pre-clearance
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -114,7 +216,7 @@ export default function CheckoutDrawer({
                     setDestination("India");
                     setGateway("razorpay");
                   }}
-                  className={`p-3 rounded-2xl border text-left transition-all ${
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     destination === "India"
                       ? "bg-white border-[#9cbfae] ring-2 ring-[#9cbfae]/40 shadow-xs"
                       : "bg-white/40 border-stone-200 opacity-60 hover:opacity-100"
@@ -131,7 +233,7 @@ export default function CheckoutDrawer({
                     setDestination("International");
                     setGateway("paypal");
                   }}
-                  className={`p-3 rounded-2xl border text-left transition-all ${
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     destination === "International"
                       ? "bg-white border-[#9cbfae] ring-2 ring-[#9cbfae]/40 shadow-xs"
                       : "bg-white/40 border-stone-200 opacity-60 hover:opacity-100"
@@ -144,63 +246,25 @@ export default function CheckoutDrawer({
               </div>
             </div>
 
-            {/* Step 2: Tier Selector (Monthly vs 12-Month Bundle) */}
-            <div className="space-y-2">
-              <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24]">
-                2. Membership Duration
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTier("Standard")}
-                  className={`p-3 rounded-2xl border text-left transition-all ${
-                    tier === "Standard"
-                      ? "bg-white border-[#9cbfae] ring-2 ring-[#9cbfae]/40 shadow-xs"
-                      : "bg-white/40 border-stone-200 opacity-60 hover:opacity-100"
-                  }`}
-                >
-                  <span className="text-[10px] font-mono text-[#547365] block">Monthly</span>
-                  <span className="font-serif font-bold text-sm text-[#1b2e24] block">Standard</span>
-                  <span className="font-serif font-bold text-xs text-emerald-800">{standardPrice}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setTier("Bundle")}
-                  className={`p-3 rounded-2xl border text-left transition-all ${
-                    tier === "Bundle"
-                      ? "bg-white border-[#9cbfae] ring-2 ring-[#9cbfae]/40 shadow-xs"
-                      : "bg-white/40 border-stone-200 opacity-60 hover:opacity-100"
-                  }`}
-                >
-                  <span className="text-[10px] font-mono text-emerald-700 font-bold block">12 Moons (Best Value)</span>
-                  <span className="font-serif font-bold text-sm text-[#1b2e24] block">Annual Bundle</span>
-                  <span className="font-serif font-bold text-xs text-amber-900">{bundlePrice}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Perks mini summary */}
-            <div className="bg-white/80 p-3.5 rounded-2xl border border-[#eedba5] text-xs text-[#1b2e24] space-y-1.5 font-medium">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span>Hand-printed Ghibli scene art + collectible vinyl sticker</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span>Handmade creator lore letter sealed with authentic wax</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span>Month 1 Gift: Large foldout cartography map of Japan</span>
-              </div>
-            </div>
-
-            {/* Step 3: Traveler Credentials */}
-            <div className="space-y-4">
+            {/* Recipient Details & Delivery Address */}
+            <div className="space-y-3">
               <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24] block">
-                3. Traveler Details & Physical Delivery
+                Recipient & Postal Delivery Address
               </label>
+
+              <div>
+                <label className="text-[11px] font-semibold text-[#547365] block mb-1">
+                  Recipient Name <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Chihiro Ogino"
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-[#9cbfae] bg-white text-xs focus:ring-1 focus:ring-[#9cbfae] focus:outline-none"
+                />
+              </div>
 
               <div>
                 <label className="text-[11px] font-semibold text-[#547365] block mb-1">
@@ -229,21 +293,21 @@ export default function CheckoutDrawer({
                   className="w-full p-2.5 rounded-xl border border-[#9cbfae] bg-white text-xs focus:ring-1 focus:ring-[#9cbfae] focus:outline-none"
                 />
                 <span className="text-[10px] text-[#547365] mt-1 block">
-                  Your monthly physical mailers are dispatched directly to this address.
+                  All physical items are hand-packed and dispatched directly to this address.
                 </span>
               </div>
             </div>
 
-            {/* Step 4: Gateway Selection */}
+            {/* Payment Method */}
             <div className="space-y-2 pt-2 border-t border-[#eedba5]">
               <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24] block">
-                4. Payment Method
+                Secure Payment Method
               </label>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setGateway("razorpay")}
-                  className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     gateway === "razorpay"
                       ? "bg-[#1b2e24] text-white border-[#1b2e24]"
                       : "bg-white text-stone-700 border-stone-200"
@@ -255,14 +319,14 @@ export default function CheckoutDrawer({
                 <button
                   type="button"
                   onClick={() => setGateway("paypal")}
-                  className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     gateway === "paypal"
                       ? "bg-[#1b2e24] text-white border-[#1b2e24]"
                       : "bg-white text-stone-700 border-stone-200"
                   }`}
                 >
                   <CreditCard className="w-3.5 h-3.5" />
-                  <span>PayPal (International)</span>
+                  <span>PayPal (Global)</span>
                 </button>
               </div>
             </div>
@@ -305,16 +369,16 @@ export default function CheckoutDrawer({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3.5 bg-[#9cbfae] hover:bg-[#86ab9a] disabled:opacity-50 text-[#1b2e24] font-serif font-bold text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-[#9cbfae] hover:bg-[#86ab9a] disabled:opacity-50 text-[#1b2e24] font-serif font-bold text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Sealing Passage...</span>
+                    <span>Sealing Dispatch...</span>
                   </>
                 ) : (
                   <>
-                    <span>Seal & Begin Journey</span>
+                    <span>Seal Dispatch & Confirm ({gateway === "razorpay" ? "Razorpay" : "PayPal"})</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -322,7 +386,7 @@ export default function CheckoutDrawer({
 
               <div className="flex items-center justify-center gap-2 mt-3 text-[10px] text-[#547365] font-mono">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-800" />
-                <span>256-bit Encrypted • Cancel Anytime • No lock-in</span>
+                <span>256-bit Encrypted • Cancel Anytime • Hand-packaged with Care</span>
               </div>
             </div>
           </form>

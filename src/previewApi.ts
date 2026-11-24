@@ -7,7 +7,7 @@
  * accounts live only in this browser's localStorage. Never put real
  * customer data or payment logic in this file.
  */
-import type { PlanTier, Subscriber } from './types';
+import type { PlanTier, Subscriber, CustomerOrder } from './types';
 
 const STORE_KEY = 'kokoro_preview_state_v1';
 
@@ -15,6 +15,7 @@ interface PreviewState {
   sessionEmail: string | null;
   subscribers: Record<string, Subscriber>;
   unlocked: Record<string, string[]>;
+  orders: CustomerOrder[];
 }
 
 function loadState(): PreviewState {
@@ -22,12 +23,15 @@ function loadState(): PreviewState {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as PreviewState;
-      if (parsed && parsed.subscribers && parsed.unlocked) return parsed;
+      if (parsed && parsed.subscribers && parsed.unlocked) {
+        if (!parsed.orders) parsed.orders = [];
+        return parsed;
+      }
     }
   } catch {
     // storage unavailable or corrupted: start fresh
   }
-  return { sessionEmail: null, subscribers: {}, unlocked: {} };
+  return { sessionEmail: null, subscribers: {}, unlocked: {}, orders: [] };
 }
 
 let state: PreviewState = loadState();
@@ -124,6 +128,68 @@ async function handle(method: string, path: string, query: URLSearchParams, body
       state.sessionEmail = null;
       saveState();
       return json({ success: true });
+    }
+
+    case 'POST /api/orders/create': {
+      const email = normEmail(body.email);
+      const address = String(body.shipping_address ?? '').trim();
+      if (!email.includes('@')) return json({ success: false, error: 'Please provide a valid email address.' }, 400);
+      if (address.length < 5) return json({ success: false, error: 'Please provide a complete shipping address.' }, 400);
+
+      const items = Array.isArray(body.items) ? body.items : [];
+      const hasSubscription = items.some((i: any) => i.isSubscription);
+      const destination = body.destination === 'International' ? 'International' : 'India';
+      const orderNumber = `KOK-${Math.floor(1000 + Math.random() * 9000)}`;
+      const trackingNumber = destination === 'India'
+        ? `IN-SPD-${Math.floor(100000 + Math.random() * 900000)}`
+        : `JP-AIR-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      const newOrder: CustomerOrder = {
+        id: `ord_${Date.now()}`,
+        orderNumber,
+        trackingNumber,
+        email,
+        recipientName: String(body.recipientName || email.split('@')[0]),
+        shipping_address: address,
+        destination,
+        items,
+        totalFormatted: String(body.totalFormatted || ''),
+        currency: String(body.currency || 'USD'),
+        gateway: String(body.gateway || 'razorpay'),
+        status: hasSubscription ? 'Active' : 'Processing',
+        createdDate: new Date().toISOString(),
+      };
+
+      if (!state.orders) state.orders = [];
+      state.orders.unshift(newOrder);
+
+      let sub = null;
+      if (hasSubscription) {
+        sub = upsertSubscriber(email, {
+          subscription_status: 'Active',
+          shipping_address: address,
+          plan_tier: `Standard (${destination})` as PlanTier,
+          destination,
+        });
+        unlock(email, 'hokkaido');
+      }
+
+      state.sessionEmail = email;
+      saveState();
+      return json({ 
+        success: true, 
+        orderNumber, 
+        trackingNumber, 
+        order: newOrder,
+        subscriber: sub 
+      });
+    }
+
+    case 'GET /api/orders/user': {
+      const s = currentSession();
+      if (!s) return json({ success: true, orders: [] });
+      const userOrders = (state.orders || []).filter(o => normEmail(o.email) === normEmail(s.email));
+      return json({ success: true, orders: userOrders });
     }
 
     case 'POST /api/checkout/direct': {
