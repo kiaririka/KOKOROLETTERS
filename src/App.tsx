@@ -151,6 +151,7 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [generatedLink, setGeneratedLink] = useState("");
   const [authAcceptTerms, setAuthAcceptTerms] = useState(true);
+  const [authOptInNewsletter, setAuthOptInNewsletter] = useState(true);
 
   // Ambient sound simulator
   const [ambientSound, setAmbientSound] = useState<"none" | "wind" | "river" | "ocean">("wind");
@@ -424,6 +425,11 @@ export default function App() {
       }
 
       if (data?.success) {
+        if (authOptInNewsletter) {
+          saveNewsletter("Traveler", emailInput.trim()).catch((err) =>
+            console.warn("Newsletter opt-in notice:", err)
+          );
+        }
         setAuthMessage(data.message);
         if (data.link) {
           setGeneratedLink(data.link);
@@ -1500,24 +1506,38 @@ export default function App() {
                   className="w-full p-3 rounded-xl border border-[#9cbfae] bg-white text-xs focus:ring-1 focus:ring-[#9cbfae] focus:outline-none"
                 />
 
-                <label className="flex items-start gap-2 cursor-pointer text-xs text-[#547365]">
-                  <input
-                    type="checkbox"
-                    checked={authAcceptTerms}
-                    onChange={(e) => setAuthAcceptTerms(e.target.checked)}
-                    className="rounded border-[#9cbfae] text-emerald-800 focus:ring-emerald-700 mt-0.5"
-                  />
-                  <span>
-                    I agree to the{" "}
-                    <button
-                      type="button"
-                      onClick={() => setTermsModalOpen(true)}
-                      className="underline text-emerald-800 font-semibold hover:text-emerald-950"
-                    >
-                      Terms & Conditions
-                    </button>
-                  </span>
-                </label>
+                <div className="space-y-2 pt-1">
+                  <label className="flex items-start gap-2 cursor-pointer text-xs text-[#547365]">
+                    <input
+                      type="checkbox"
+                      checked={authOptInNewsletter}
+                      onChange={(e) => setAuthOptInNewsletter(e.target.checked)}
+                      className="rounded border-[#9cbfae] text-emerald-800 focus:ring-emerald-700 mt-0.5"
+                    />
+                    <span>
+                      Also add me to free monthly Cultural Newsletter whispers &amp; region previews.
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-2 cursor-pointer text-xs text-[#547365]">
+                    <input
+                      type="checkbox"
+                      checked={authAcceptTerms}
+                      onChange={(e) => setAuthAcceptTerms(e.target.checked)}
+                      className="rounded border-[#9cbfae] text-emerald-800 focus:ring-emerald-700 mt-0.5"
+                    />
+                    <span>
+                      I agree to the{" "}
+                      <button
+                        type="button"
+                        onClick={() => setTermsModalOpen(true)}
+                        className="underline text-emerald-800 font-semibold hover:text-emerald-950"
+                      >
+                        Terms & Conditions
+                      </button>
+                    </span>
+                  </label>
+                </div>
 
                 <button
                   type="submit"
