@@ -85,7 +85,7 @@ export default function StoreFront({
                   : "text-[#547365] hover:text-[#1b2e24]"
               }`}
             >
-              🇮🇳 India Domestic (Estimated)
+              🇮🇳 India (Tracked Speed Post)
             </button>
             <button
               onClick={() => onToggleDestination("International")}
@@ -95,7 +95,7 @@ export default function StoreFront({
                   : "text-[#547365] hover:text-[#1b2e24]"
               }`}
             >
-              🌏 Worldwide (Estimated)
+              🌏 Worldwide (Optional Tracked)
             </button>
           </div>
 

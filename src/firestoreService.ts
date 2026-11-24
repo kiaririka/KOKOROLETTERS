@@ -97,6 +97,7 @@ export interface WaitlistDetails {
   name?: string;
   destination?: "India" | "International";
   preferredPlan?: string;
+  shippingMethod?: string;
   cityCountry?: string;
   interestedItems?: Array<{
     productId: string;
@@ -114,6 +115,7 @@ export interface WaitlistRecord {
   name?: string;
   destination?: "India" | "International";
   preferredPlan?: string;
+  shippingMethod?: string;
   cityCountry?: string;
   interestedItems?: Array<{
     productId: string;
@@ -161,6 +163,7 @@ export async function saveWaitlist(
       name: details.name?.trim() || "Traveler",
       destination: details.destination || "India",
       preferredPlan: details.preferredPlan || "Monthly Passage",
+      shippingMethod: details.shippingMethod || (details.destination === "International" ? "Standard Airmail (Untracked)" : "India Speed Post (Tracked)"),
       cityCountry: details.cityCountry?.trim() || "",
       interestedItems: details.interestedItems || [],
       estimatedTotal: details.estimatedTotal || "",
@@ -193,6 +196,7 @@ export async function getAllWaitlist(): Promise<WaitlistRecord[]> {
       name: data.name || "Traveler",
       destination: data.destination || "India",
       preferredPlan: data.preferredPlan || "Monthly Passage",
+      shippingMethod: data.shippingMethod || (data.destination === "International" ? "Standard Airmail (Untracked)" : "India Speed Post (Tracked)"),
       cityCountry: data.cityCountry || "",
       interestedItems: data.interestedItems || [],
       estimatedTotal: data.estimatedTotal || "",

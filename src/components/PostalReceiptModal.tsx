@@ -82,10 +82,10 @@ export default function PostalReceiptModal({
             </div>
             <div>
               <span className="text-[10px] font-mono text-[#547365] block uppercase">
-                {isWaitlistReservation ? "Status" : "Tracking Waybill"}
+                {isWaitlistReservation ? "Postal Preference" : "Tracking Waybill"}
               </span>
               <span className="font-mono font-bold text-xs text-emerald-800">
-                {isWaitlistReservation ? "Batch 01 Priority" : order.trackingNumber}
+                {order.trackingNumber}
               </span>
             </div>
             <div>

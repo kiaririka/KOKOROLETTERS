@@ -20,73 +20,73 @@ export const INTERNATIONAL_CURRENCIES: Record<SupportedCurrency, CurrencyInfo> =
     code: "USD",
     symbol: "$",
     label: "USD ($)",
-    standardMonthly: 26,
-    bundleYearly: 286,
-    standardFormatted: "$26",
-    bundleFormatted: "$286"
+    standardMonthly: 12,
+    bundleYearly: 120,
+    standardFormatted: "$12",
+    bundleFormatted: "$120"
   },
   EUR: {
     code: "EUR",
     symbol: "€",
     label: "EUR (€)",
-    standardMonthly: 24,
-    bundleYearly: 264,
-    standardFormatted: "€24",
-    bundleFormatted: "€264"
+    standardMonthly: 11,
+    bundleYearly: 110,
+    standardFormatted: "€11",
+    bundleFormatted: "€110"
   },
   GBP: {
     code: "GBP",
     symbol: "£",
     label: "GBP (£)",
-    standardMonthly: 21,
-    bundleYearly: 231,
-    standardFormatted: "£21",
-    bundleFormatted: "£231"
+    standardMonthly: 10,
+    bundleYearly: 100,
+    standardFormatted: "£10",
+    bundleFormatted: "£100"
   },
   CAD: {
     code: "CAD",
     symbol: "CA$",
     label: "CAD (CA$)",
-    standardMonthly: 36,
-    bundleYearly: 396,
-    standardFormatted: "CA$36",
-    bundleFormatted: "CA$396"
+    standardMonthly: 17,
+    bundleYearly: 170,
+    standardFormatted: "CA$17",
+    bundleFormatted: "CA$170"
   },
   AUD: {
     code: "AUD",
     symbol: "A$",
     label: "AUD (A$)",
-    standardMonthly: 40,
-    bundleYearly: 440,
-    standardFormatted: "A$40",
-    bundleFormatted: "A$440"
+    standardMonthly: 19,
+    bundleYearly: 190,
+    standardFormatted: "A$19",
+    bundleFormatted: "A$190"
   },
   JPY: {
     code: "JPY",
     symbol: "¥",
     label: "JPY (¥)",
-    standardMonthly: 3900,
-    bundleYearly: 42900,
-    standardFormatted: "¥3,900",
-    bundleFormatted: "¥42,900"
+    standardMonthly: 1800,
+    bundleYearly: 18000,
+    standardFormatted: "¥1,800",
+    bundleFormatted: "¥18,000"
   },
   SGD: {
     code: "SGD",
     symbol: "S$",
     label: "SGD (S$)",
-    standardMonthly: 35,
-    bundleYearly: 385,
-    standardFormatted: "S$35",
-    bundleFormatted: "S$385"
+    standardMonthly: 16,
+    bundleYearly: 160,
+    standardFormatted: "S$16",
+    bundleFormatted: "S$160"
   },
   INR: {
     code: "INR",
     symbol: "₹",
     label: "INR (₹)",
-    standardMonthly: 999,
-    bundleYearly: 10000,
-    standardFormatted: "₹999",
-    bundleFormatted: "₹10,000"
+    standardMonthly: 899,
+    bundleYearly: 8990,
+    standardFormatted: "₹899",
+    bundleFormatted: "₹8,990"
   }
 };
 
@@ -154,8 +154,20 @@ export function getPlanPriceString(
   currency: SupportedCurrency = "USD"
 ): string {
   if (destination === "India") {
-    return tier === "Bundle" ? "₹10,000 / year" : "₹999 / month";
+    return tier === "Bundle" ? "₹8,990 / year" : "₹899 / month";
   }
-  const curr = INTERNATIONAL_CURRENCIES[currency] || INTERNATIONAL_CURRENCIES.USD;
+  const intlCurrency = currency === "INR" ? "USD" : currency;
+  const curr = INTERNATIONAL_CURRENCIES[intlCurrency] || INTERNATIONAL_CURRENCIES.USD;
   return tier === "Bundle" ? `${curr.bundleFormatted} / year` : `${curr.standardFormatted} / month`;
+}
+
+/**
+ * Returns formatted optional tracked airmail add-on price per international dispatch (+$6 USD base).
+ */
+export function getTrackedUpgradePriceString(currency: SupportedCurrency = "USD"): string {
+  const intlCurrency = currency === "INR" ? "USD" : currency;
+  const curr = INTERNATIONAL_CURRENCIES[intlCurrency] || INTERNATIONAL_CURRENCIES.USD;
+  const ratio = (curr.standardMonthly || 12) / 12;
+  const trackedFee = Math.round(6 * ratio);
+  return `+${curr.symbol}${trackedFee.toLocaleString()} / dispatch`;
 }

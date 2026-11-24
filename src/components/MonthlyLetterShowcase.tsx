@@ -311,10 +311,10 @@ export default function MonthlyLetterShowcase({ isSubscriber, onSubscribe }: { i
               </div>
               <div className="space-y-1">
                 <h6 className="text-xs font-bold font-serif text-ghibli-green-dark">
-                  🎁 First-Month Welcome Gift: Physical Map of Japan
+                  🎁 Month 1 Founding Gift: Envelope-Sized Map of Japan
                 </h6>
                 <p className="text-[11px] text-ghibli-sage leading-relaxed">
-                  Join during our inaugural month to receive a large, physical map of Japan. As the months unfold, use your regional stickers to complete all 12 Ghibli-inspired sanctuaries!
+                  Join during our inaugural first month to receive the envelope-sized collectible Map of Japan free inside your parcel. Subscribers who join in later months can purchase the map separately in the store.
                 </p>
               </div>
             </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, ShieldCheck, RefreshCw, ArrowRight, Package, Sparkles } from "lucide-react";
-import { SupportedCurrency, getPlanPriceString } from "../currencyService.ts";
+import { SupportedCurrency, getPlanPriceString, getTrackedUpgradePriceString } from "../currencyService.ts";
 import { CartItem } from "./CartDrawer.tsx";
 import { formatProductPrice } from "../data/storeProducts.ts";
 
@@ -18,6 +18,7 @@ interface CheckoutDrawerProps {
     shipping_address: string;
     plan_tier: "Standard" | "Bundle";
     destination: "India" | "International";
+    shippingMethod: string;
     gateway: "waitlist";
     optInNewsletter: boolean;
     acceptTerms: boolean;
@@ -51,6 +52,7 @@ export default function CheckoutDrawer({
 }: CheckoutDrawerProps) {
   const [destination, setDestination] = useState<"India" | "International">(defaultDestination);
   const [tier, setTier] = useState<"Standard" | "Bundle">(defaultTier);
+  const [intlTracked, setIntlTracked] = useState(false);
   const [recipientName, setRecipientName] = useState("");
   const [email, setEmail] = useState(existingEmail);
   const [cityCountry, setCityCountry] = useState(existingAddress);
@@ -62,6 +64,7 @@ export default function CheckoutDrawer({
     if (isOpen) {
       setDestination(defaultDestination);
       setTier(defaultTier);
+      setIntlTracked(false);
       if (existingEmail) setEmail(existingEmail);
       if (existingAddress) setCityCountry(existingAddress);
       setFormError("");
@@ -102,12 +105,21 @@ export default function CheckoutDrawer({
           },
         ];
 
+    const trackedUpgradeStr = getTrackedUpgradePriceString(selectedCurrency);
+    const shippingMethod =
+      destination === "India"
+        ? "India Speed Post (Tracked • Included)"
+        : intlTracked
+        ? `Tracked Airmail (${trackedUpgradeStr})`
+        : "Standard Airmail (Untracked • Included)";
+
     onSubmit({
       recipientName: recipientName.trim() || email.split("@")[0],
       email: email.trim(),
       shipping_address: cityCountry.trim(),
       plan_tier: tier,
       destination,
+      shippingMethod,
       gateway: "waitlist",
       optInNewsletter,
       acceptTerms,
@@ -118,6 +130,7 @@ export default function CheckoutDrawer({
 
   const standardPrice = getPlanPriceString(destination, "Standard", selectedCurrency);
   const bundlePrice = getPlanPriceString(destination, "Bundle", selectedCurrency);
+  const trackedUpgradePrice = getTrackedUpgradePriceString(selectedCurrency);
 
   return (
     <AnimatePresence>
@@ -249,7 +262,7 @@ export default function CheckoutDrawer({
                 >
                   <span className="text-[10px] font-mono text-[#547365] block">Domestic</span>
                   <span className="font-serif font-bold text-sm text-[#1b2e24] block">India Delivery</span>
-                  <span className="font-serif font-bold text-xs text-emerald-800">Domestic Post</span>
+                  <span className="font-serif font-bold text-xs text-emerald-800">Speed Post Included</span>
                 </button>
 
                 <button
@@ -263,9 +276,46 @@ export default function CheckoutDrawer({
                 >
                   <span className="text-[10px] font-mono text-[#547365] block">Worldwide</span>
                   <span className="font-serif font-bold text-sm text-[#1b2e24] block">International</span>
-                  <span className="font-serif font-bold text-xs text-amber-900">Tracked Airmail</span>
+                  <span className="font-serif font-bold text-xs text-amber-900">Standard or Tracked</span>
                 </button>
               </div>
+
+              {destination === "International" && (
+                <div className="pt-2 space-y-2">
+                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24] block">
+                    2b. International Postal Preference
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIntlTracked(false)}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                        !intlTracked
+                          ? "bg-white border-[#9cbfae] ring-2 ring-[#9cbfae]/40 shadow-xs"
+                          : "bg-white/40 border-stone-200 opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      <span className="text-[10px] font-mono text-[#547365] block">Included</span>
+                      <span className="font-serif font-bold text-xs text-[#1b2e24] block">Standard Airmail</span>
+                      <span className="text-[10px] text-[#547365] block mt-0.5">Untracked flat letter (~2–4 wks)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIntlTracked(true)}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                        intlTracked
+                          ? "bg-white border-[#9cbfae] ring-2 ring-[#9cbfae]/40 shadow-xs"
+                          : "bg-white/40 border-stone-200 opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      <span className="text-[10px] font-mono font-bold text-amber-900 block">{trackedUpgradePrice}</span>
+                      <span className="font-serif font-bold text-xs text-[#1b2e24] block">Tracked Airmail (ITPS)</span>
+                      <span className="text-[10px] text-[#547365] block mt-0.5">End-to-end online tracking</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Traveler Details */}

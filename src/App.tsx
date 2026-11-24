@@ -454,6 +454,7 @@ export default function App() {
     shipping_address: string;
     plan_tier: "Standard" | "Bundle";
     destination: "India" | "International";
+    shippingMethod: string;
     gateway: "waitlist";
     optInNewsletter: boolean;
     acceptTerms: boolean;
@@ -479,6 +480,7 @@ export default function App() {
         name: data.recipientName,
         destination: data.destination,
         preferredPlan,
+        shippingMethod: data.shippingMethod,
         cityCountry: data.shipping_address,
         interestedItems: orderItems,
         estimatedTotal: data.totalFormatted || "",
@@ -495,7 +497,7 @@ export default function App() {
       const newWaitlistPass: CustomerOrder = {
         id: `wl_${Date.now()}`,
         orderNumber: passRef,
-        trackingNumber: "Batch 01 Priority",
+        trackingNumber: data.shippingMethod || "Batch 01 Priority",
         email: data.email,
         recipientName: data.recipientName,
         shipping_address: data.shipping_address,
@@ -788,7 +790,7 @@ export default function App() {
                 </h1>
 
                 <p className="text-sm md:text-base text-[#547365] max-w-2xl mx-auto leading-relaxed">
-                  Monthly wax-sealed art &amp; lore letters from Japan’s Ghibli-inspired landscapes &mdash; receive a scenic art print, collectible region stamp, and creator letter, plus a foldout Japan map in Month 1.
+                  Monthly wax-sealed art &amp; lore letters from Japan’s Ghibli-inspired landscapes &mdash; receive a scenic art print, collectible region stamp, and creator letter, plus a free envelope-sized Japan map if you join in Month 1.
                 </p>
 
                 <div className="flex flex-wrap justify-center gap-3 pt-2">

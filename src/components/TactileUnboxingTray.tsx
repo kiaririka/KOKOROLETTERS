@@ -56,12 +56,12 @@ const KIT_ITEMS: KitItem[] = [
   },
   {
     id: "welcome-map",
-    name: "Large Foldout Map of Japan",
-    subtitle: "Month 1 Welcome Keepsake",
+    name: "Envelope-Sized Map of Japan",
+    subtitle: "Inaugural Month 1 Exclusive",
     icon: <Map className="w-4 h-4" />,
-    tag: "Bonus Gift",
-    description: "Planned for your very first dispatch: a foldout vintage-cartography map of Japan showing all 12 cultural waypoints, ready to receive your monthly stamps.",
-    details: ["Warm cream foldout format", "Illustrated landmarks & passes", "Arrives in a wax-sealed mailer"],
+    tag: "Month 1 Only",
+    description: "Included free only for Founding travelers who join during Month 1. An envelope-sized collectible map of Japan showing all 12 cultural waypoints to stick each month's regional stamp onto. Later joiners can pick it up separately in the store.",
+    details: ["Envelope-sized flat keepsake", "12 marked cultural waypoints", "Free only for Month 1 joiners"],
     sampleImage: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80"
   }
 ];

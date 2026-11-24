@@ -212,12 +212,13 @@ export default function AdminDashboard() {
       alert("No Founding Waitlist entries to export yet.");
       return;
     }
-    const headers = ["Name", "Email", "Region", "Preferred Plan", "City / Country", "Saved Items", "Source", "Date"];
+    const headers = ["Name", "Email", "Region", "Preferred Plan", "Shipping Method", "City / Country", "Saved Items", "Source", "Date"];
     const rows = waitlist.map(w => [
       `"${(w.name || "Traveler").replace(/"/g, '""')}"`,
       `"${w.email}"`,
       `"${w.destination || "India"}"`,
       `"${(w.preferredPlan || "").replace(/"/g, '""')}"`,
+      `"${(w.shippingMethod || "").replace(/"/g, '""')}"`,
       `"${(w.cityCountry || "").replace(/"/g, '""')}"`,
       `"${(w.interestedItems && w.interestedItems.length > 0 ? w.interestedItems.map(i => `${i.name} (x${i.quantity})`).join("; ") : "").replace(/"/g, '""')}"`,
       `"${w.source || "waitlist"}"`,
@@ -454,8 +455,11 @@ export default function AdminDashboard() {
                       }`}>
                         {w.destination === "International" ? "🌏 International" : "🇮🇳 India"}
                       </span>
+                      {w.shippingMethod && (
+                        <div className="text-[11px] font-medium text-emerald-800 mt-1">{w.shippingMethod}</div>
+                      )}
                       {w.cityCountry && (
-                        <div className="text-[11px] text-stone-500 mt-1">{w.cityCountry}</div>
+                        <div className="text-[11px] text-stone-500 mt-0.5">{w.cityCountry}</div>
                       )}
                     </td>
                     <td className="px-6 py-4 font-mono text-[11px] text-stone-500">
@@ -498,12 +502,13 @@ export default function AdminDashboard() {
       alert("No Founding Waitlist entries to export yet.");
       return;
     }
-    const headers = ["Name", "Email", "Region", "Preferred Plan", "City / Country", "Saved Items", "Source", "Date"];
+    const headers = ["Name", "Email", "Region", "Preferred Plan", "Shipping Method", "City / Country", "Saved Items", "Source", "Date"];
     const rows = waitlist.map(w => [
       `"${(w.name || "Traveler").replace(/"/g, '""')}"`,
       `"${w.email}"`,
       `"${w.destination || "India"}"`,
       `"${(w.preferredPlan || "").replace(/"/g, '""')}"`,
+      `"${(w.shippingMethod || "").replace(/"/g, '""')}"`,
       `"${(w.cityCountry || "").replace(/"/g, '""')}"`,
       `"${(w.interestedItems && w.interestedItems.length > 0 ? w.interestedItems.map(i => `${i.name} (x${i.quantity})`).join("; ") : "").replace(/"/g, '""')}"`,
       `"${w.source || "waitlist"}"`,

@@ -30,8 +30,8 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     id: "sub-monthly",
     name: "The Monthly Passage",
     category: "subscription",
-    priceINR: 999,
-    priceUSD: 26,
+    priceINR: 899,
+    priceUSD: 12,
     isSubscription: true,
     billingInterval: "monthly",
     badge: "Most Cherished",
@@ -42,7 +42,7 @@ export const STORE_PRODUCTS: StoreProduct[] = [
       "✨ Custom collectible spirit sticker",
       "🏷️ Collectible region stamp for your map",
       "📜 Wax-sealed creator lore letter",
-      "🎁 Month 1 Bonus: Foldout map of Japan"
+      "🎁 Free envelope-sized Japan map (Month 1 joiners only)"
     ],
     image: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=800&q=80",
     inStock: true
@@ -52,8 +52,8 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     id: "sub-annual",
     name: "12-Moon Annual Expedition",
     category: "subscription",
-    priceINR: 10000,
-    priceUSD: 286,
+    priceINR: 8990,
+    priceUSD: 120,
     isSubscription: true,
     billingInterval: "yearly",
     badge: "Best Value • 2 Months Free",
@@ -74,8 +74,8 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     id: "kit-sayama",
     name: "Sayama Hills Collector's Kit",
     category: "kits",
-    priceINR: 1199,
-    priceUSD: 30,
+    priceINR: 999,
+    priceUSD: 15,
     isSubscription: false,
     billingInterval: "one-time",
     badge: "Archive Edition",
@@ -95,8 +95,8 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     id: "kit-yakushima",
     name: "Yakushima Ancient Cedar Kit",
     category: "kits",
-    priceINR: 1199,
-    priceUSD: 30,
+    priceINR: 999,
+    priceUSD: 15,
     isSubscription: false,
     billingInterval: "one-time",
     badge: "Archive Edition",
@@ -116,8 +116,8 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     id: "kit-tomonoura",
     name: "Tomonoura Port Collector Kit",
     category: "kits",
-    priceINR: 1199,
-    priceUSD: 30,
+    priceINR: 999,
+    priceUSD: 15,
     isSubscription: false,
     billingInterval: "one-time",
     badge: "Archive Edition",
@@ -174,23 +174,23 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     image: "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=800&q=80",
     inStock: true
   },
-  // 8. Artisan Keepsake: Large Cartography Map of Japan
+  // 8. Artisan Keepsake: Envelope-Sized Cartography Map of Japan
   {
     id: "stat-japan-map",
-    name: "12-Region Postal Map of Japan (A3)",
+    name: "12-Region Postal Map of Japan",
     category: "stationery",
-    priceINR: 799,
-    priceUSD: 22,
+    priceINR: 299,
+    priceUSD: 6,
     isSubscription: false,
     billingInterval: "one-time",
-    badge: "Wall Display",
-    tagline: "Vintage-illustrated cartography on heavy textured paper",
-    description: "A display wall map detailing the 12 cultural regions of Japan, historic postal highways (Tokaido and Nakasendo), mountain ranges, and shrine gates. Ready to frame or receive your monthly region stickers.",
+    badge: "Sold Separately After Month 1",
+    tagline: "Envelope-sized collectible map for your monthly stamps",
+    description: "An illustrated envelope-sized map detailing the 12 cultural regions of Japan, ready to receive your monthly regional stamp stickers. Included free only for Month 1 subscribers—available here separately if you join later.",
     perks: [
-      "Large foldout / wall display format",
-      "Warm cream textured fine-art paper",
-      "Packaged flat or rolled to prevent creases",
-      "Included free in Month 1 subscriptions"
+      "Envelope-sized keepsake (fits cleanly with letters)",
+      "All 12 regional waypoints marked",
+      "Textured cream fine-art stock",
+      "Free only for Month 1 Founding joiners"
     ],
     image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80",
     inStock: true
@@ -212,9 +212,10 @@ export function formatProductPrice(
     return base;
   }
 
-  const currInfo = INTERNATIONAL_CURRENCIES[currency] || INTERNATIONAL_CURRENCIES.USD;
-  // Conversion ratio from USD base
-  const ratio = (currInfo.standardMonthly || 26) / 26;
+  const intlCurrency = currency === "INR" ? "USD" : currency;
+  const currInfo = INTERNATIONAL_CURRENCIES[intlCurrency] || INTERNATIONAL_CURRENCIES.USD;
+  // Conversion ratio from USD base ($12 monthly)
+  const ratio = (currInfo.standardMonthly || 12) / 12;
   const converted = Math.round(product.priceUSD * ratio);
   const formatted = `${currInfo.symbol}${converted.toLocaleString()}`;
 
