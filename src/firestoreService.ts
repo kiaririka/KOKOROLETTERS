@@ -93,18 +93,57 @@ export async function saveNewsletter(
   }
 }
 
+export interface WaitlistDetails {
+  name?: string;
+  destination?: "India" | "International";
+  preferredPlan?: string;
+  cityCountry?: string;
+  interestedItems?: Array<{
+    productId: string;
+    name: string;
+    quantity: number;
+    priceFormatted: string;
+  }>;
+  estimatedTotal?: string;
+  source?: string;
+}
+
+export interface WaitlistRecord {
+  id: string;
+  email: string;
+  name?: string;
+  destination?: "India" | "International";
+  preferredPlan?: string;
+  cityCountry?: string;
+  interestedItems?: Array<{
+    productId: string;
+    name: string;
+    quantity: number;
+    priceFormatted: string;
+  }>;
+  estimatedTotal?: string;
+  source: string;
+  createdDate?: string;
+  createdAt?: any;
+}
+
 /**
- * Saves an email to the 'waitlist' collection.
+ * Saves an email (and optional Founding Waitlist preferences) to the 'waitlist' collection.
  */
 export async function saveWaitlist(
   email: string,
-  source: string = "waitlist"
+  sourceOrDetails: string | WaitlistDetails = "waitlist"
 ): Promise<"success" | "already-signed-up" | "error"> {
   try {
     const cleanEmail = normalizeEmail(email);
     if (!cleanEmail || !cleanEmail.includes("@")) {
       return "error";
     }
+
+    const details: WaitlistDetails =
+      typeof sourceOrDetails === "string"
+        ? { source: sourceOrDetails }
+        : sourceOrDetails;
 
     const docRef = doc(db, "waitlist", cleanEmail);
 
@@ -119,7 +158,13 @@ export async function saveWaitlist(
 
     await setDoc(docRef, {
       email: cleanEmail,
-      source,
+      name: details.name?.trim() || "Traveler",
+      destination: details.destination || "India",
+      preferredPlan: details.preferredPlan || "Monthly Passage",
+      cityCountry: details.cityCountry?.trim() || "",
+      interestedItems: details.interestedItems || [],
+      estimatedTotal: details.estimatedTotal || "",
+      source: details.source || "waitlist",
       createdAt: serverTimestamp(),
       createdDate: new Date().toISOString()
     });
@@ -132,6 +177,31 @@ export async function saveWaitlist(
     console.warn("Firestore: Error saving waitlist:", err);
     return "error";
   }
+}
+
+/**
+ * Fetches all Founding Waitlist entries from Firestore.
+ */
+export async function getAllWaitlist(): Promise<WaitlistRecord[]> {
+  const snap = await getDocs(collection(db, "waitlist"));
+  const records: WaitlistRecord[] = [];
+  snap.forEach((d) => {
+    const data = d.data();
+    records.push({
+      id: d.id,
+      email: data.email || d.id,
+      name: data.name || "Traveler",
+      destination: data.destination || "India",
+      preferredPlan: data.preferredPlan || "Monthly Passage",
+      cityCountry: data.cityCountry || "",
+      interestedItems: data.interestedItems || [],
+      estimatedTotal: data.estimatedTotal || "",
+      source: data.source || "waitlist",
+      createdDate: data.createdDate || "",
+      createdAt: data.createdAt
+    });
+  });
+  return records;
 }
 
 /**

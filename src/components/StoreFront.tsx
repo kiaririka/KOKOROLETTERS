@@ -63,7 +63,7 @@ export default function StoreFront({
 
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-[#eedba5] text-[11px] font-mono text-[#547365]">
           <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-          <span>Slow Goods • Tokyo Workshop & Indian Domestic Hub</span>
+          <span>Founding Batch 01 • Waitlist Open (No Payment Yet)</span>
         </div>
 
         <h2 className="text-3xl md:text-5xl font-serif font-bold text-[#1b2e24] max-w-2xl mx-auto leading-tight">
@@ -71,7 +71,7 @@ export default function StoreFront({
         </h2>
 
         <p className="text-xs md:text-sm text-[#547365] max-w-xl mx-auto leading-relaxed">
-          Monthly slow-mail club memberships, archived regional collector editions, and tactile Japanese stationery handcrafted for wanderers and dreamers.
+          Explore our planned monthly snail-mail memberships, archived regional editions, and keepsake stationery. Reserve your favorite picks on the Founding Waitlist with zero upfront charge.
         </p>
 
         {/* Global Destination & Currency Toggle */}
@@ -85,7 +85,7 @@ export default function StoreFront({
                   : "text-[#547365] hover:text-[#1b2e24]"
               }`}
             >
-              🇮🇳 India Domestic (Free Speed-Post)
+              🇮🇳 India Domestic (Estimated)
             </button>
             <button
               onClick={() => onToggleDestination("International")}
@@ -95,7 +95,7 @@ export default function StoreFront({
                   : "text-[#547365] hover:text-[#1b2e24]"
               }`}
             >
-              🌏 Worldwide (Tracked Airmail)
+              🌏 Worldwide (Estimated)
             </button>
           </div>
 
@@ -212,7 +212,7 @@ export default function StoreFront({
                       onClick={() => onDirectSubscribe(product)}
                       className="flex-1 py-2.5 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-xl text-xs font-serif font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>Join Passage</span>
+                      <span>Reserve Spot (Waitlist)</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   ) : (
@@ -221,7 +221,7 @@ export default function StoreFront({
                       className="flex-1 py-2.5 bg-[#9cbfae] hover:bg-[#86ab9a] text-[#1b2e24] rounded-xl text-xs font-serif font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <ShoppingBag className="w-3.5 h-3.5" />
-                      <span>Add to Satchel</span>
+                      <span>Save to Satchel</span>
                     </button>
                   )}
                 </div>
@@ -294,7 +294,7 @@ export default function StoreFront({
                     }}
                     className="w-full py-3 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-xl text-xs font-serif font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Subscribe to this Passage</span>
+                    <span>Reserve Founding Waitlist Spot</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 ) : (
@@ -306,7 +306,7 @@ export default function StoreFront({
                     className="w-full py-3 bg-[#9cbfae] hover:bg-[#86ab9a] text-[#1b2e24] rounded-xl text-xs font-serif font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <ShoppingBag className="w-4 h-4" />
-                    <span>Add to Satchel</span>
+                    <span>Save to Interest Satchel</span>
                   </button>
                 )}
               </div>

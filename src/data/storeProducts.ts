@@ -36,13 +36,13 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     billingInterval: "monthly",
     badge: "Most Cherished",
     tagline: "Monthly slow-living snail mail dispatch",
-    description: "Receive a handmade postal kit every month celebrating one of Japan's 12 scenic regions that inspired Studio Ghibli. Hand-printed art, character vinyl stickers, collectible region map stamp, and hand-sealed creator letter.",
+    description: "Receive a small-batch postal kit every month celebrating one of Japan's 12 scenic regions that inspired Studio Ghibli. Textured art print, spirit stickers, collectible region map stamp, and wax-sealed creator letter.",
     perks: [
-      "🖼️ Hand-printed Ghibli scene art (300gsm cotton rag)",
-      "✨ Custom character vinyl sticker",
+      "🖼️ Textured scenic art print (inspired by Ghibli landscapes)",
+      "✨ Custom collectible spirit sticker",
       "🏷️ Collectible region stamp for your map",
-      "📜 Hand-sealed creator letter with genuine wax",
-      "🎁 Month 1 Bonus: Large A3 foldout map of Japan"
+      "📜 Wax-sealed creator lore letter",
+      "🎁 Month 1 Bonus: Foldout map of Japan"
     ],
     image: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=800&q=80",
     inStock: true
@@ -58,13 +58,13 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     billingInterval: "yearly",
     badge: "Best Value • 2 Months Free",
     tagline: "The complete 12-region journey across Japan",
-    description: "Prepay the entire 12-month expedition across Japan. Guaranteed fulfillment of all 12 dispatches, prioritized manual packaging, and an exclusive collector's wooden keepsake box.",
+    description: "Reserve the full 12-month expedition across Japan. Includes all 12 monthly dispatches, priority batch packaging, and a planned collector's keepsake box.",
     perks: [
-      "📦 All 12 monthly dispatches guaranteed",
-      "🌲 Hand-carved Paulownia wooden storage box (Kiri-bako)",
-      "💮 Complete 12-stamp Goshuincho collection",
-      "💌 Personalized calligraphy dedication in month 1",
-      "✨ Free priority tracked shipping worldwide"
+      "📦 All 12 monthly dispatches included",
+      "🌲 Collector's wooden keepsake storage box",
+      "💮 Complete 12-stamp collection",
+      "💌 Personalized dedication note in Month 1",
+      "✨ Priority dispatch worldwide"
     ],
     image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80",
     inStock: true
@@ -80,10 +80,10 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     billingInterval: "one-time",
     badge: "Archive Edition",
     tagline: "Inspired by My Neighbor Totoro (1988)",
-    description: "Single collector envelope featuring rural Sayama Hills just outside Tokyo. Includes the iconic country hills art print, sleeping forest spirit sticker, tea plantation map stamp, and the story of Miyazaki's conservation trust.",
+    description: "Single collector envelope concept featuring rural Sayama Hills just outside Tokyo. Includes a country hills art print, forest spirit sticker, tea plantation map stamp, and the story of Miyazaki's conservation trust.",
     perks: [
       "Country road & tea fields art print",
-      "Giant forest spirit sleeping vinyl sticker",
+      "Sleeping forest spirit collectible sticker",
       "Sayama green tea botanical stamp",
       "Personal lore letter on rural Japanese farming"
     ],
@@ -101,10 +101,10 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     billingInterval: "one-time",
     badge: "Archive Edition",
     tagline: "Inspired by Princess Mononoke (1997)",
-    description: "Single collector kit exploring Yakushima's prehistoric mossy cedar biospheres. Includes the mist valley art print, glowing Kodama spirit sticker, Jomon Sugi tree stamp, and creator field journal.",
+    description: "Single collector kit concept exploring Yakushima's ancient mossy cedar biospheres. Includes a mist valley art print, Kodama spirit sticker, Jomon Sugi tree stamp, and creator field journal.",
     perks: [
-      "Deep forest valley art print on textured washi",
-      "Transparent matte Kodama vinyl sticker",
+      "Deep forest valley textured art print",
+      "Matte Kodama spirit collectible sticker",
       "Yakushima ancient cedar collectible stamp",
       "Handwritten reflection on nature & spirits"
     ],
@@ -122,10 +122,10 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     billingInterval: "one-time",
     badge: "Archive Edition",
     tagline: "Inspired by Ponyo on the Cliff by the Sea (2008)",
-    description: "Single collector kit celebrating the peaceful Edo-period fishing village on the Seto Inland Sea. Includes the cliffside ocean art print, swimming goldfish spirit sticker, and stone lighthouse stamp.",
+    description: "Single collector kit concept celebrating the peaceful Edo-period fishing village on the Seto Inland Sea. Includes a cliffside ocean art print, goldfish spirit sticker, and stone lighthouse stamp.",
     perks: [
       "Lighthouse & quiet harbor art print",
-      "Magical red goldfish vinyl sticker",
+      "Magical goldfish spirit collectible sticker",
       "Seto Inland Sea postal stamp",
       "Essay on coastal life and slow ocean living"
     ],
@@ -142,13 +142,13 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     isSubscription: false,
     billingInterval: "one-time",
     badge: "Handcrafted Artisan",
-    tagline: "Traditional concertina-folded washi pilgrimage book",
-    description: "Handmade in Kyoto using Echizen washi accordion paper and bound in indigo-dyed botanical linen. Designed to hold all 12 regional stamps and letters from your Kokoro journey.",
+    tagline: "Traditional concertina-folded pilgrimage stamp book",
+    description: "An accordion-folded keepsake stamp book bound in deep botanical linen tones, designed to hold all 12 regional stamps and notes from your Kokoro journey.",
     perks: [
-      "48 pages of double-layered absorbent washi",
-      "Natural indigo-dyed cotton cover",
-      "Embossed brass corner protectors",
-      "Includes protective paulownia wooden sleeve"
+      "Accordion-folded heavy pages for stamps",
+      "Indigo-toned fabric cover",
+      "Protective corner accents",
+      "Designed to hold all 12 region stamps"
     ],
     image: "https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=800&q=80",
     inStock: true
@@ -184,13 +184,13 @@ export const STORE_PRODUCTS: StoreProduct[] = [
     isSubscription: false,
     billingInterval: "one-time",
     badge: "Wall Display",
-    tagline: "Vintage-illustrated cartography on 260gsm cotton rag",
-    description: "An archival wall map detailing the 12 cultural regions of Japan, ancient postal highways (Tokaido and Nakasendo), mountain ranges, and shrine gates. Ready to frame or receive your monthly region stickers.",
+    tagline: "Vintage-illustrated cartography on heavy textured paper",
+    description: "A display wall map detailing the 12 cultural regions of Japan, historic postal highways (Tokaido and Nakasendo), mountain ranges, and shrine gates. Ready to frame or receive your monthly region stickers.",
     perks: [
-      "A3 format (297 x 420 mm / 11.7 x 16.5 inches)",
-      "260gsm cream textured cotton rag washi",
-      "Dispatched rolled in a sturdy protective postal tube",
-      "Hand-numbered limited artist edition"
+      "Large foldout / wall display format",
+      "Warm cream textured fine-art paper",
+      "Packaged flat or rolled to prevent creases",
+      "Included free in Month 1 subscriptions"
     ],
     image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80",
     inStock: true

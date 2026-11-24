@@ -26,20 +26,20 @@ const MONTHLY_LETTERS: LetterShowcaseItem[] = [
   {
     id: "kanto",
     regionName: "Sayama Hills (Kanto)",
-    monthLabel: "Past Month (June)",
-    shippingStatus: "Shipped: June 5, 2026 • Delivered & Unlocked",
+    monthLabel: "Edition 01 Concept",
+    shippingStatus: "Batch 01 Candidate • Waitlist Open",
     statusIcon: <CheckCircle className="w-3.5 h-3.5" />,
     statusColor: "text-emerald-800 bg-emerald-50 border-emerald-200",
     title: "Sayama Hills & My Neighbor Totoro",
     animeInspired: "Inspired My Neighbor Totoro (1988)",
     postcardImage: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80",
-    introText: "Dearest Traveler,\n\nWalk down the country dirt roads of Sayama Hills, just outside Tokyo. Feel the cool shadow of the giant Camphor tree where Totoro sleeps. This area—known affectionately as Totoro’s Forest—features rolling green tea hills, seasonal wildflowers, and deep woods. In this letter, I describe my visits to the hills and how Miyazaki preserved this ecosystem...",
-    animeStickerDesc: "A warm, retro-styled sticker of a giant friendly forest spirit sleeping comfortably inside a tree trunk hollow.",
-    regionStickerDesc: "A regional sticker celebrating Kanto's green tea leaves and historic rural farmlands.",
+    introText: "Dearest Traveler,\n\nWalk down the country dirt roads of Sayama Hills, just outside Tokyo. Feel the cool shadow of the giant Camphor tree where Totoro sleeps. This area—known affectionately as Totoro’s Forest—features rolling green tea hills, seasonal wildflowers, and deep woods. In this letter, we explore the hills and how Miyazaki helped preserve this living ecosystem...",
+    animeStickerDesc: "A warm, retro-styled sticker of a friendly forest spirit sleeping comfortably inside a tree trunk hollow.",
+    regionStickerDesc: "A regional stamp sticker celebrating Kanto's green tea leaves and historic rural farmlands.",
     keepsakes: [
       {
-        name: "Totoro's Forest Art Print",
-        description: "A vibrant hand-printed scenic view of the lush, rolling countryside hills of Sayama under a summer sky.",
+        name: "Sayama Forest Art Print",
+        description: "A vibrant small-batch scenic print of the lush, rolling countryside hills of Sayama under a summer sky.",
         icon: <Image className="w-4 h-4 text-amber-800" />
       },
       {
@@ -48,7 +48,7 @@ const MONTHLY_LETTERS: LetterShowcaseItem[] = [
         icon: <Star className="w-4 h-4 text-amber-800" />
       },
       {
-        name: "Sayama Region Sticker",
+        name: "Sayama Region Stamp",
         description: "A custom region sticker showcasing the iconic tea fields of Saitama to stamp onto your map.",
         icon: <Tag className="w-4 h-4 text-amber-800" />
       },
@@ -62,35 +62,35 @@ const MONTHLY_LETTERS: LetterShowcaseItem[] = [
   {
     id: "kyushu",
     regionName: "Yakushima (Kyushu)",
-    monthLabel: "Current Month (July)",
-    shippingStatus: "Shipped: July 3, 2026 • Dispatched & In Transit",
-    statusIcon: <Truck className="w-3.5 h-3.5 animate-pulse" />,
+    monthLabel: "Edition 02 Concept",
+    shippingStatus: "Concept Preview • Finalizing Paper & Print",
+    statusIcon: <Truck className="w-3.5 h-3.5" />,
     statusColor: "text-amber-800 bg-amber-50 border-amber-200",
     title: "Yakushima Forest & Princess Mononoke",
     animeInspired: "Inspired Princess Mononoke (1997)",
     postcardImage: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=800&q=80",
-    introText: "Dearest Traveler,\n\nStep into the eternal, dripping green of Yakushima's ancient cedar forests. This is the birthplace of the Forest Spirit. In this month's letter, I write to you about the ancient Kodama spirits, the deep moss-clad roots that cover the island, and how Hayao Miyazaki's team spent days drawing in the rain to capture this sacred biosphere. Let this letter carry you into the heart of wild Japan...",
-    animeStickerDesc: "A transparent die-cut vinyl sticker of a gentle, glowing Kodama sitting on a mossy branch.",
+    introText: "Dearest Traveler,\n\nStep into the eternal, dripping green of Yakushima's ancient cedar forests. This is the birthplace of the Forest Spirit. In this edition's letter, we explore the ancient Kodama spirits, the deep moss-clad roots that cover the island, and how Hayao Miyazaki's team spent days sketching in the rain to capture this sacred biosphere...",
+    animeStickerDesc: "A matte collectible sticker of a gentle, glowing Kodama sitting on a mossy branch.",
     regionStickerDesc: "A circular collectible stamp-style sticker of Yakushima island's ancient Jomon Sugi cedar.",
     keepsakes: [
       {
-        name: "Hand-Printed Ghibli Art Print",
-        description: "An original high-texture art print of the moss-laden forest valley where Princess Mononoke meets the Forest Spirit.",
+        name: "Yakushima Scenic Art Print",
+        description: "An original textured art print of the moss-laden forest valley that inspired the Forest Spirit's sanctuary.",
         icon: <Image className="w-4 h-4 text-emerald-800" />
       },
       {
         name: "Glowing Kodama Sticker",
-        description: "A matte vinyl sticker inspired by the mystical forest spirits of the movie.",
+        description: "A matte collectible sticker inspired by the mystical forest spirits of the story.",
         icon: <Star className="w-4 h-4 text-emerald-800" />
       },
       {
-        name: "Yakushima Region Sticker",
-        description: "A specially printed region sticker to stick onto your physical map of Japan to log this destination.",
+        name: "Yakushima Region Stamp",
+        description: "A specially printed region sticker to affix onto your physical map of Japan to log this destination.",
         icon: <Tag className="w-4 h-4 text-emerald-800" />
       },
       {
         name: "Personalized Lore Letter",
-        description: "A detailed, handmade letter describing the region, how Miyazaki built the film's mossy environments, and local folklore.",
+        description: "A detailed, wax-sealed letter describing the region, how Miyazaki built the film's mossy worlds, and local folklore.",
         icon: <BookOpen className="w-4 h-4 text-emerald-800" />
       }
     ]
@@ -98,35 +98,35 @@ const MONTHLY_LETTERS: LetterShowcaseItem[] = [
   {
     id: "chugoku",
     regionName: "Tomonoura (Chugoku)",
-    monthLabel: "Upcoming Month (August)",
-    shippingStatus: "Est. Shipping: August 1, 2026 • Preparing in Sanctuary",
+    monthLabel: "Edition 03 Concept",
+    shippingStatus: "Concept Preview • Planned Future Dispatch",
     statusIcon: <Package className="w-3.5 h-3.5" />,
     statusColor: "text-stone-600 bg-stone-50 border-stone-200",
     title: "Tomonoura Port & Ponyo by the Sea",
     animeInspired: "Inspired Ponyo on the Cliff (2008)",
     postcardImage: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=800&q=80",
-    introText: "Dearest Traveler,\n\nWelcome to the sleepy, coastal inlet of Tomonoura in Hiroshima. Here, the tide turns quietly in the Seto Inland Sea. Miyazaki lived in a tiny clifftop house here for two months, getting inspired by the rusty iron harbor, local fishing boats, and the warm, simple kindness of the sea breeze. In this letter, I share the tales of the sea...",
-    animeStickerDesc: "A hand-illustrated sticker of the magical goldfish princess, Ponyo, riding on a giant cresting wave.",
+    introText: "Dearest Traveler,\n\nWelcome to the sleepy, coastal inlet of Tomonoura in Hiroshima. Here, the tide turns quietly in the Seto Inland Sea. Miyazaki lived in a tiny clifftop house here for two months, drawing inspiration from the iron harbor, local fishing boats, and the simple warmth of the sea breeze...",
+    animeStickerDesc: "A hand-illustrated sticker of a magical sea spirit riding on a cresting wave.",
     regionStickerDesc: "A custom regional sticker featuring Tomonoura's historic Edo-period stone lighthouse (Joyatō).",
     keepsakes: [
       {
         name: "Scenic Port Art Print",
-        description: "A lovely hand-printed scene of the clifftop house overlooking the glittering blue waters of the Seto Inland Sea.",
+        description: "A lovely small-batch print of the clifftop view overlooking the glittering blue waters of the Seto Inland Sea.",
         icon: <Image className="w-4 h-4 text-sky-800" />
       },
       {
-        name: "Wave-Rider Ponyo Sticker",
-        description: "An adorable watercolor-style sticker inspired by Ponyo's playful ocean adventures.",
+        name: "Wave-Rider Spirit Sticker",
+        description: "A watercolor-style collectible sticker inspired by coastal folklore and playful ocean adventures.",
         icon: <Star className="w-4 h-4 text-sky-800" />
       },
       {
-        name: "Tomonoura Region Sticker",
+        name: "Tomonoura Region Stamp",
         description: "A classic region sticker depicting the coastal harbor landmarks to mark off Chugoku on your map.",
         icon: <Tag className="w-4 h-4 text-sky-800" />
       },
       {
         name: "Personalized Lore Letter",
-        description: "A handmade letter describing the beautiful port town of Tomonoura, Miyazaki's retreat, and sea folklore.",
+        description: "A wax-sealed letter describing the port town of Tomonoura, Miyazaki's retreat, and sea folklore.",
         icon: <BookOpen className="w-4 h-4 text-sky-800" />
       }
     ]
@@ -180,7 +180,7 @@ export default function MonthlyLetterShowcase({ isSubscriber, onSubscribe }: { i
                   {letter.regionName}
                 </div>
                 <div className="text-[9px] opacity-75 truncate font-mono mt-0.5">
-                  {letter.id === "kanto" ? "Delivered" : letter.id === "kyushu" ? "In Transit" : "Preparing"}
+                  {letter.id === "kanto" ? "Batch 01 Candidate" : letter.id === "kyushu" ? "Concept Preview" : "Planned Edition"}
                 </div>
               </button>
             );
@@ -285,7 +285,7 @@ export default function MonthlyLetterShowcase({ isSubscriber, onSubscribe }: { i
                   Physical Envelope Contents
                 </h5>
                 <span className="text-[10px] font-mono text-ghibli-green-dark bg-[#faf6eb] px-2 py-0.5 rounded-full border border-ghibli-cream-dark">
-                  100% Hand-printed & Handmade
+                  Concept Edition Specs
                 </span>
               </div>
               
@@ -328,14 +328,14 @@ export default function MonthlyLetterShowcase({ isSubscriber, onSubscribe }: { i
                     <span>Share the love for Japan & beautiful cinema</span>
                   </div>
                   <p className="text-xs text-ghibli-sage">
-                    Subscribe today and let's embark on this 12-month journey together.
+                    Reserve your Founding Batch 01 waitlist spot today—no charge until we launch.
                   </p>
                 </div>
                 <button
                   onClick={onSubscribe}
-                  className="w-full sm:w-auto px-5 py-2.5 bg-ghibli-green-dark text-white hover:bg-[#2b4436] rounded-xl text-xs font-serif font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-ghibli-green-dark text-white hover:bg-[#2b4436] rounded-xl text-xs font-serif font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
                 >
-                  <span>Begin Your Journey</span>
+                  <span>Join Founding Waitlist</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>

@@ -203,22 +203,22 @@ export default function CartDrawer({
           {items.length > 0 && (
             <div className="p-6 border-t border-[#eedba5] bg-white/90 backdrop-blur-xs space-y-3">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs text-[#547365] font-medium">Estimated Dispatch:</span>
+                <span className="text-xs text-[#547365] font-medium">Launch Batch:</span>
                 <span className="text-xs font-serif text-[#1b2e24]">
-                  {destination === "India" ? "3-5 Business Days (Speed-Post)" : "7-12 Days (Tracked Airmail)"}
+                  Founding Batch 01 ({destination === "India" ? "India Domestic" : "International"})
                 </span>
               </div>
 
               <div className="bg-[#faf6eb] p-3 rounded-xl border border-[#eedba5] flex items-center gap-2 text-[11px] text-[#1b2e24]">
                 <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                <span>Zero plastic. Hand-folded in washi envelopes with authentic wax.</span>
+                <span>No payment today. Reserve your interest to get priority access when Batch 01 opens.</span>
               </div>
 
               <button
                 onClick={onProceedToCheckout}
-                className="w-full py-3.5 bg-[#9cbfae] hover:bg-[#86ab9a] text-[#1b2e24] font-serif font-bold text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 bg-[#1b2e24] hover:bg-stone-800 text-white font-serif font-bold text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Proceed to Postal Checkout</span>
+                <span>Reserve on Waitlist (No Charge)</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

@@ -132,6 +132,8 @@ export default function App() {
   // Modals & Drawers
   const [readingModalOpen, setReadingModalOpen] = useState(false);
   const [checkoutDrawerOpen, setCheckoutDrawerOpen] = useState(false);
+  const [defaultCheckoutTier, setDefaultCheckoutTier] = useState<"Standard" | "Bundle">("Standard");
+  const [alreadyOnWaitlist, setAlreadyOnWaitlist] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [isSubmittingCheckout, setIsSubmittingCheckout] = useState(false);
@@ -159,6 +161,7 @@ export default function App() {
 
   // Quick footer waitlist
   const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistNotice, setWaitlistNotice] = useState<string | null>(null);
 
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -388,6 +391,7 @@ export default function App() {
   };
 
   const handleDirectSubscribe = (product: StoreProduct) => {
+    setDefaultCheckoutTier(product.billingInterval === "yearly" ? "Bundle" : "Standard");
     setCheckoutDrawerOpen(true);
   };
 
@@ -450,7 +454,7 @@ export default function App() {
     shipping_address: string;
     plan_tier: "Standard" | "Bundle";
     destination: "India" | "International";
-    gateway: "razorpay" | "paypal";
+    gateway: "waitlist";
     optInNewsletter: boolean;
     acceptTerms: boolean;
     items?: Array<{
@@ -464,53 +468,34 @@ export default function App() {
   }) => {
     setIsSubmittingCheckout(true);
 
-    if (data.optInNewsletter) {
-      saveNewsletter("Traveler", data.email.trim()).catch(e => console.warn(e));
-    }
-
     try {
       const orderItems = data.items || [];
-      const hasSubscription = orderItems.some(i => i.isSubscription);
+      const preferredPlan =
+        data.plan_tier === "Bundle"
+          ? `12-Moon Annual (${data.destination})`
+          : `Monthly Passage (${data.destination})`;
 
-      // 1. Save complete order to Firestore
-      const completeRes = await saveCompleteOrder({
-        email: data.email,
-        recipientName: data.recipientName,
-        shipping_address: data.shipping_address,
+      const waitlistResult = await saveWaitlist(data.email, {
+        name: data.recipientName,
         destination: data.destination,
-        gateway: data.gateway,
-        items: orderItems,
-        totalFormatted: data.totalFormatted || "",
-        currency: selectedCurrency,
+        preferredPlan,
+        cityCountry: data.shipping_address,
+        interestedItems: orderItems,
+        estimatedTotal: data.totalFormatted || "",
+        source: cartItems.length > 0 ? "store-satchel-waitlist" : "founding-waitlist",
       });
 
-      // 2. Also dispatch to backend / preview API (sets signed session cookie + sends Resend receipt)
-      const res = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: data.email,
-          recipientName: data.recipientName,
-          shipping_address: data.shipping_address,
-          destination: data.destination,
-          gateway: data.gateway,
-          items: orderItems,
-          totalFormatted: data.totalFormatted || "",
-          currency: selectedCurrency,
-          orderNumber: completeRes.orderNumber,
-          trackingNumber: completeRes.trackingNumber,
-          skipFirestoreWrite: Boolean(completeRes.persistedToFirestore),
-        })
-      });
-      const result = await res.json();
+      if (data.optInNewsletter) {
+        saveNewsletter(data.recipientName || "Traveler", data.email.trim()).catch(e => console.warn(e));
+      }
 
-      const orderNumber = result.orderNumber || completeRes.orderNumber;
-      const trackingNumber = result.trackingNumber || completeRes.trackingNumber;
+      submitWaitlistEmail(data.email.trim()).catch(e => console.warn(e));
 
-      const newPlacedOrder: CustomerOrder = {
-        id: `ord_${Date.now()}`,
-        orderNumber,
-        trackingNumber,
+      const passRef = `KOK-WL-${Math.floor(1000 + Math.random() * 9000)}`;
+      const newWaitlistPass: CustomerOrder = {
+        id: `wl_${Date.now()}`,
+        orderNumber: passRef,
+        trackingNumber: "Batch 01 Priority",
         email: data.email,
         recipientName: data.recipientName,
         shipping_address: data.shipping_address,
@@ -518,27 +503,20 @@ export default function App() {
         items: orderItems,
         totalFormatted: data.totalFormatted || "",
         currency: selectedCurrency,
-        gateway: data.gateway,
-        status: hasSubscription ? "Active" : "Processing",
+        gateway: "waitlist",
+        status: "Processing",
         createdDate: new Date().toISOString()
       };
 
-      // Set order confirmation receipt modal
-      setPlacedReceiptOrder(newPlacedOrder);
+      setAlreadyOnWaitlist(waitlistResult === "already-signed-up");
+      setPlacedReceiptOrder(newWaitlistPass);
       setReceiptModalOpen(true);
       setCheckoutDrawerOpen(false);
       setCartDrawerOpen(false);
       setCartItems([]);
-
-      await fetchSession();
-      if (data.email) {
-        await fetchCustomerOrders(data.email);
-      }
-      if (hasSubscription) {
-        triggerUnlockAnimation("hokkaido");
-      }
     } catch (err: any) {
-      alert("Checkout error: " + err.message);
+      setActionNotice("Could not save your waitlist spot right now. Please try again.");
+      setTimeout(() => setActionNotice(null), 5000);
     } finally {
       setIsSubmittingCheckout(false);
     }
@@ -802,44 +780,44 @@ export default function App() {
                 
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-[#eedba5] text-[11px] font-mono text-[#547365]">
                   <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Slow Living • Handcrafted Japanese Snail Mail</span>
+                  <span>Founding Batch 01 • Waitlist Open (No Charge Today)</span>
                 </div>
 
                 <h1 className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold text-[#1b2e24] max-w-3xl mx-auto leading-tight">
-                  Step through the meadow into the spirit world
+                  Monthly wax-sealed art &amp; lore letters from Japan’s Ghibli-inspired landscapes
                 </h1>
 
                 <p className="text-sm md:text-base text-[#547365] max-w-2xl mx-auto leading-relaxed">
-                  Each month, a handcrafted physical kit arrives at your door &mdash; botanical art, vinyl stickers, and slow lore from one of Japan's twelve breathtaking regions that inspired Studio Ghibli.
+                  Step through the meadow into a slower ritual. Each month, receive an illustrated art print, collectible region stamp, and creator lore letter—plus a foldout Japan map in Month 1 to chart all 12 scenic regions.
                 </p>
 
                 <div className="flex flex-wrap justify-center gap-3 pt-2">
                   <button
                     onClick={() => {
                       setPlanDestination("India");
-                      setActiveTab("store");
+                      setDefaultCheckoutTier("Standard");
+                      setCheckoutDrawerOpen(true);
                     }}
                     className="px-6 py-3.5 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-2xl text-xs md:text-sm font-serif font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                   >
-                    <span>Visit the Boutique Store</span>
+                    <span>Join Batch 01 Waitlist (Free)</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => {
-                      setActiveTab("journal");
-                      setTimeout(() => {
-                        document.getElementById("interactive-japan-map")?.scrollIntoView({ behavior: "smooth" });
-                      }, 100);
+                      document.getElementById("tactile-unboxing-tray")?.scrollIntoView({ behavior: "smooth" });
                     }}
                     className="px-6 py-3.5 bg-white border border-[#9cbfae] hover:bg-[#e3ece8]/40 text-[#1b2e24] rounded-2xl text-xs md:text-sm font-serif font-bold transition-all cursor-pointer"
                   >
-                    Explore the 12 Regions
+                    Peek Inside a Dispatch
                   </button>
                 </div>
               </div>
 
               {/* LAYER: Tactile Unboxing Tray */}
-              <TactileUnboxingTray />
+              <div id="tactile-unboxing-tray">
+                <TactileUnboxingTray />
+              </div>
 
               {/* Monthly Letter Showcase Strip */}
               <div className="space-y-4">
@@ -954,7 +932,7 @@ export default function App() {
                       }}
                       className="px-3 py-1 bg-[#9cbfae] text-[#1b2e24] rounded-lg text-xs font-serif font-bold hover:bg-[#86ab9a] transition-colors cursor-pointer"
                     >
-                      Subscribe to Unlock Map
+                      Join Waitlist to Unlock
                     </button>
                   )}
                 </div>
@@ -1094,7 +1072,7 @@ export default function App() {
                                 className="w-full py-2.5 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-xl text-xs font-serif font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                               >
                                 <CreditCard className="w-3.5 h-3.5" />
-                                <span>Subscribe to Unlock Passage</span>
+                                <span>Reserve Batch 01 Spot</span>
                               </button>
                             ) : null}
                           </div>
@@ -1321,10 +1299,11 @@ export default function App() {
               <PostcardWhispers
                 onSubscribeEmail={async (em) => {
                   try {
-                    await saveNewsletter("Traveler", em);
-                    return true;
+                    const res = await saveNewsletter("Traveler", em);
+                    submitWaitlistEmail(em).catch(() => {});
+                    return res;
                   } catch {
-                    return true;
+                    return "error";
                   }
                 }}
               />
@@ -1357,7 +1336,7 @@ export default function App() {
               <span className="font-serif font-bold text-sm text-[#1b2e24]">Kokoro Letters</span>
             </div>
             <p className="text-[11px] leading-relaxed max-w-sm">
-              A moonlit journey through Japan, one paper lantern at a time. Hand-printed, hand-folded, and wax-sealed in Tokyo.
+              A moonlit journey through Japan, one wax-sealed letter at a time. Thoughtfully curated, printed, and hand-assembled in small batches.
             </p>
           </div>
 
@@ -1377,25 +1356,41 @@ export default function App() {
           </div>
 
           <div className="space-y-2">
-            <span className="font-mono font-bold text-[10px] uppercase text-[#1b2e24] block">Stay in the Meadow</span>
-            <p className="text-[11px]">Receive subtle whispers of upcoming regions.</p>
+            <span className="font-mono font-bold text-[10px] uppercase text-[#1b2e24] block">Founding Batch 01 Waitlist</span>
+            <p className="text-[11px]">Get notified when Batch 01 opens and receive subtle region whispers.</p>
             <div className="flex gap-1.5">
               <input
                 type="email"
                 placeholder="you@meadow.jp"
                 value={waitlistEmail}
-                onChange={(e) => setWaitlistEmail(e.target.value)}
+                onChange={(e) => {
+                  setWaitlistEmail(e.target.value);
+                  if (waitlistNotice) setWaitlistNotice(null);
+                }}
                 className="bg-white border border-[#e3ece8] rounded-xl px-2.5 py-1.5 text-xs flex-1 focus:outline-none"
               />
               <button
                 onClick={async () => {
-                  if (!waitlistEmail.includes("@")) return;
+                  if (!waitlistEmail.includes("@")) {
+                    setWaitlistNotice("Please enter a valid email address.");
+                    return;
+                  }
                   try {
-                    await saveWaitlist(waitlistEmail.trim());
-                    alert("You are on the list! 🍃");
-                    setWaitlistEmail("");
+                    const status = await saveWaitlist(waitlistEmail.trim(), {
+                      destination: planDestination,
+                      source: "footer-waitlist",
+                    });
+                    submitWaitlistEmail(waitlistEmail.trim()).catch(() => {});
+                    if (status === "already-signed-up") {
+                      setWaitlistNotice("You’re already on the Founding Waitlist! 🍃");
+                    } else if (status === "error") {
+                      setWaitlistNotice("Could not save right now — please try again.");
+                    } else {
+                      setWaitlistNotice("Spot saved! Watch your inbox for Batch 01. 🍃");
+                      setWaitlistEmail("");
+                    }
                   } catch {
-                    alert("Welcome to the waitlist! 🍃");
+                    setWaitlistNotice("Spot saved! Watch your inbox for Batch 01. 🍃");
                   }
                 }}
                 className="px-3 py-1.5 bg-[#1b2e24] text-white rounded-xl text-xs font-serif font-bold hover:bg-stone-800 transition-colors cursor-pointer"
@@ -1403,6 +1398,9 @@ export default function App() {
                 Join
               </button>
             </div>
+            {waitlistNotice && (
+              <p className="text-[11px] text-emerald-800 font-medium">{waitlistNotice}</p>
+            )}
           </div>
         </footer>
       </main>
@@ -1428,12 +1426,12 @@ export default function App() {
         }}
       />
 
-      {/* 2. Slide-Over Checkout Drawer */}
+      {/* 2. Slide-Over Founding Waitlist / Reservation Drawer */}
       <CheckoutDrawer
         isOpen={checkoutDrawerOpen}
         onClose={() => setCheckoutDrawerOpen(false)}
         defaultDestination={planDestination}
-        defaultTier="Standard"
+        defaultTier={defaultCheckoutTier}
         selectedCurrency={selectedCurrency}
         cartItems={cartItems}
         onSubmit={handleDrawerCheckout}
@@ -1443,10 +1441,12 @@ export default function App() {
         onOpenTerms={() => setTermsModalOpen(true)}
       />
 
-      {/* 3. Official Postal Manifest / Receipt Modal */}
+      {/* 3. Founding Waitlist Pass / Confirmation Modal */}
       <PostalReceiptModal
         order={placedReceiptOrder}
         isOpen={receiptModalOpen}
+        isWaitlistReservation={true}
+        alreadyOnWaitlist={alreadyOnWaitlist}
         onClose={() => setReceiptModalOpen(false)}
         onViewJournal={() => {
           setActiveTab("journal");

@@ -43,13 +43,13 @@ const PAST_TEASERS: TeaserItem[] = [
 ];
 
 interface PostcardWhispersProps {
-  onSubscribeEmail: (email: string) => Promise<boolean>;
+  onSubscribeEmail: (email: string) => Promise<"success" | "already-signed-up" | "error" | boolean>;
 }
 
 export default function PostcardWhispers({ onSubscribeEmail }: PostcardWhispersProps) {
   const [flippedCards, setFlippedCards] = useState<Record<string, boolean>>({});
   const [newsletterEmail, setNewsletterEmail] = useState("");
-  const [newsletterSent, setNewsletterSent] = useState(false);
+  const [newsletterStatus, setNewsletterStatus] = useState<"idle" | "success" | "already-signed-up" | "error">("idle");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toggleFlip = (id: string) => {
@@ -60,9 +60,15 @@ export default function PostcardWhispers({ onSubscribeEmail }: PostcardWhispersP
     e.preventDefault();
     if (!newsletterEmail.includes("@")) return;
     setIsSubmitting(true);
-    const ok = await onSubscribeEmail(newsletterEmail);
+    const result = await onSubscribeEmail(newsletterEmail);
     setIsSubmitting(false);
-    if (ok) setNewsletterSent(true);
+    if (result === "already-signed-up") {
+      setNewsletterStatus("already-signed-up");
+    } else if (result === "error" || result === false) {
+      setNewsletterStatus("error");
+    } else {
+      setNewsletterStatus("success");
+    }
   };
 
   return (
@@ -85,34 +91,45 @@ export default function PostcardWhispers({ onSubscribeEmail }: PostcardWhispersP
           </p>
         </div>
 
-        {newsletterSent ? (
+        {newsletterStatus === "success" || newsletterStatus === "already-signed-up" ? (
           <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-900 space-y-1 max-w-md mx-auto">
             <div className="flex items-center justify-center gap-2 font-serif font-bold text-sm">
               <Check className="w-4 h-4 text-emerald-700" />
-              <span>Your Scroll has been Sealed!</span>
+              <span>
+                {newsletterStatus === "already-signed-up"
+                  ? "You are already signed up! 🍃"
+                  : "Your Scroll has been Sealed!"}
+              </span>
             </div>
             <p className="text-[11px] text-[#547365]">
-              Check your inbox when the new moon rises for the next region whisper. 🍃
+              Check your inbox when the new moon rises for the next region whisper and Batch 01 launch updates. 🍃
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
-            <input
-              type="email"
-              required
-              placeholder="Enter your email (e.g. chihiro@meadow.jp)"
-              value={newsletterEmail}
-              onChange={(e) => setNewsletterEmail(e.target.value)}
-              className="flex-1 px-4 py-3 rounded-2xl border border-[#9cbfae] bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#9cbfae]"
-            />
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-3 bg-[#1b2e24] hover:bg-stone-800 disabled:opacity-50 text-white rounded-2xl text-xs font-serif font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 shadow-xs"
-            >
-              <span>Subscribe Free</span>
-              <Send className="w-3.5 h-3.5" />
-            </button>
+          <form onSubmit={handleSubmit} className="space-y-2 max-w-md mx-auto">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="email"
+                required
+                placeholder="Enter your email (e.g. chihiro@meadow.jp)"
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                className="flex-1 px-4 py-3 rounded-2xl border border-[#9cbfae] bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#9cbfae]"
+              />
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-6 py-3 bg-[#1b2e24] hover:bg-stone-800 disabled:opacity-50 text-white rounded-2xl text-xs font-serif font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
+              >
+                <span>{isSubmitting ? "Sealing..." : "Subscribe Free"}</span>
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {newsletterStatus === "error" && (
+              <p className="text-[11px] text-rose-700">
+                Could not save right now — please check your email and try again.
+              </p>
+            )}
           </form>
         )}
       </div>

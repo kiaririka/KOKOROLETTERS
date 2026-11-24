@@ -83,10 +83,10 @@ export const INTERNATIONAL_CURRENCIES: Record<SupportedCurrency, CurrencyInfo> =
     code: "INR",
     symbol: "₹",
     label: "INR (₹)",
-    standardMonthly: 2200,
-    bundleYearly: 24200,
-    standardFormatted: "₹2,200",
-    bundleFormatted: "₹24,200"
+    standardMonthly: 999,
+    bundleYearly: 10000,
+    standardFormatted: "₹999",
+    bundleFormatted: "₹10,000"
   }
 };
 

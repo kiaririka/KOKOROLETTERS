@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, CreditCard, ShieldCheck, RefreshCw, CheckCircle2, ArrowRight, Package } from "lucide-react";
+import { X, ShieldCheck, RefreshCw, ArrowRight, Package, Sparkles } from "lucide-react";
 import { SupportedCurrency, getPlanPriceString } from "../currencyService.ts";
 import { CartItem } from "./CartDrawer.tsx";
 import { formatProductPrice } from "../data/storeProducts.ts";
@@ -18,7 +18,7 @@ interface CheckoutDrawerProps {
     shipping_address: string;
     plan_tier: "Standard" | "Bundle";
     destination: "India" | "International";
-    gateway: "razorpay" | "paypal";
+    gateway: "waitlist";
     optInNewsletter: boolean;
     acceptTerms: boolean;
     items?: Array<{
@@ -53,10 +53,20 @@ export default function CheckoutDrawer({
   const [tier, setTier] = useState<"Standard" | "Bundle">(defaultTier);
   const [recipientName, setRecipientName] = useState("");
   const [email, setEmail] = useState(existingEmail);
-  const [address, setAddress] = useState(existingAddress);
-  const [gateway, setGateway] = useState<"razorpay" | "paypal">(defaultDestination === "India" ? "razorpay" : "paypal");
+  const [cityCountry, setCityCountry] = useState(existingAddress);
   const [optInNewsletter, setOptInNewsletter] = useState(true);
   const [acceptTerms, setAcceptTerms] = useState(true);
+  const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setDestination(defaultDestination);
+      setTier(defaultTier);
+      if (existingEmail) setEmail(existingEmail);
+      if (existingAddress) setCityCountry(existingAddress);
+      setFormError("");
+    }
+  }, [isOpen, defaultDestination, defaultTier, existingEmail, existingAddress]);
 
   if (!isOpen) return null;
 
@@ -64,12 +74,13 @@ export default function CheckoutDrawer({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !address) {
-      alert("Please enter your email and complete physical delivery address.");
+    setFormError("");
+    if (!email || !email.includes("@")) {
+      setFormError("Please enter a valid email address so we can notify you when Batch 01 opens.");
       return;
     }
     if (!acceptTerms) {
-      alert("Please accept the Terms & Conditions to complete your passage.");
+      setFormError("Please accept the Terms & Conditions to join the waitlist.");
       return;
     }
 
@@ -86,7 +97,7 @@ export default function CheckoutDrawer({
             productId: tier === "Bundle" ? "sub-annual" : "sub-monthly",
             name: tier === "Bundle" ? "12-Moon Annual Expedition Bundle" : "The Monthly Passage",
             quantity: 1,
-            priceFormatted: getPlanPriceString(tier, destination, selectedCurrency),
+            priceFormatted: getPlanPriceString(destination, tier, selectedCurrency),
             isSubscription: true,
           },
         ];
@@ -94,19 +105,19 @@ export default function CheckoutDrawer({
     onSubmit({
       recipientName: recipientName.trim() || email.split("@")[0],
       email: email.trim(),
-      shipping_address: address.trim(),
+      shipping_address: cityCountry.trim(),
       plan_tier: tier,
       destination,
-      gateway,
+      gateway: "waitlist",
       optInNewsletter,
       acceptTerms,
       items: compiledItems,
-      totalFormatted: hasCart ? `${cartItems.length} treasures` : getPlanPriceString(tier, destination, selectedCurrency),
+      totalFormatted: hasCart ? `${cartItems.length} saved items` : getPlanPriceString(destination, tier, selectedCurrency),
     });
   };
 
-  const standardPrice = getPlanPriceString("Standard", destination, selectedCurrency);
-  const bundlePrice = getPlanPriceString("Bundle", destination, selectedCurrency);
+  const standardPrice = getPlanPriceString(destination, "Standard", selectedCurrency);
+  const bundlePrice = getPlanPriceString(destination, "Bundle", selectedCurrency);
 
   return (
     <AnimatePresence>
@@ -124,10 +135,10 @@ export default function CheckoutDrawer({
           <div className="p-6 border-b border-[#eedba5] flex items-center justify-between bg-white/80 backdrop-blur-xs sticky top-0 z-20">
             <div>
               <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#547365] bg-[#e3ece8] px-2.5 py-0.5 rounded-full">
-                🌿 Kokoro Postal Checkout
+                🌿 Founding Batch 01 Waitlist
               </span>
               <h3 className="font-serif font-bold text-xl text-[#1b2e24] mt-1">
-                {hasCart ? "Seal & Dispatch Your Satchel" : "Begin Your Snail Mail Passage"}
+                {hasCart ? "Reserve Your Satchel Picks" : "Reserve Your Founding Spot"}
               </h3>
             </div>
             <button
@@ -140,11 +151,28 @@ export default function CheckoutDrawer({
 
           {/* Form Content */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6 flex-1 text-left">
+            {/* Zero-charge Pre-launch Notice */}
+            <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-3.5 text-xs text-emerald-950 flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="font-serif font-bold block">No payment needed today</span>
+                <p className="text-[11px] text-emerald-900/90 leading-relaxed">
+                  We’re finalizing our paper stock and print process. Reserving a spot holds your place in line and helps us plan Batch 01 quantities.
+                </p>
+              </div>
+            </div>
+
+            {formError && (
+              <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl px-3.5 py-2.5 text-xs">
+                {formError}
+              </div>
+            )}
+
             {/* If Cart Items are present: Show Cart Summary */}
             {hasCart ? (
               <div className="space-y-2">
                 <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24] block">
-                  Items in this Dispatch ({cartItems.length})
+                  Items You’re Interested In ({cartItems.length})
                 </span>
                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                   {cartItems.map((ci, idx) => (
@@ -170,7 +198,7 @@ export default function CheckoutDrawer({
               /* Step 2: Tier Selector (Monthly vs 12-Month Bundle) */
               <div className="space-y-2">
                 <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24]">
-                  1. Membership Passage
+                  1. Preferred Passage (Est. Launch Pricing)
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -183,7 +211,7 @@ export default function CheckoutDrawer({
                     }`}
                   >
                     <span className="text-[10px] font-mono text-[#547365] block">Monthly</span>
-                    <span className="font-serif font-bold text-sm text-[#1b2e24] block">Standard</span>
+                    <span className="font-serif font-bold text-sm text-[#1b2e24] block">Monthly Passage</span>
                     <span className="font-serif font-bold text-xs text-emerald-800">{standardPrice}</span>
                   </button>
 
@@ -207,15 +235,12 @@ export default function CheckoutDrawer({
             {/* Destination Selector */}
             <div className="space-y-2">
               <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24]">
-                Shipping Hub & Customs Pre-clearance
+                2. Your Shipping Region
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setDestination("India");
-                    setGateway("razorpay");
-                  }}
+                  onClick={() => setDestination("India")}
                   className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     destination === "India"
                       ? "bg-white border-[#9cbfae] ring-2 ring-[#9cbfae]/40 shadow-xs"
@@ -224,15 +249,12 @@ export default function CheckoutDrawer({
                 >
                   <span className="text-[10px] font-mono text-[#547365] block">Domestic</span>
                   <span className="font-serif font-bold text-sm text-[#1b2e24] block">India Delivery</span>
-                  <span className="font-serif font-bold text-xs text-emerald-800">Speed-Post Free</span>
+                  <span className="font-serif font-bold text-xs text-emerald-800">Domestic Post</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setDestination("International");
-                    setGateway("paypal");
-                  }}
+                  onClick={() => setDestination("International")}
                   className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     destination === "International"
                       ? "bg-white border-[#9cbfae] ring-2 ring-[#9cbfae]/40 shadow-xs"
@@ -240,25 +262,24 @@ export default function CheckoutDrawer({
                   }`}
                 >
                   <span className="text-[10px] font-mono text-[#547365] block">Worldwide</span>
-                  <span className="font-serif font-bold text-sm text-[#1b2e24] block">International Airmail</span>
-                  <span className="font-serif font-bold text-xs text-amber-900">Tracked from Tokyo</span>
+                  <span className="font-serif font-bold text-sm text-[#1b2e24] block">International</span>
+                  <span className="font-serif font-bold text-xs text-amber-900">Tracked Airmail</span>
                 </button>
               </div>
             </div>
 
-            {/* Recipient Details & Delivery Address */}
+            {/* Traveler Details */}
             <div className="space-y-3">
               <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24] block">
-                Recipient & Postal Delivery Address
+                3. Where Should We Send Your Batch 01 Invite?
               </label>
 
               <div>
                 <label className="text-[11px] font-semibold text-[#547365] block mb-1">
-                  Recipient Name <span className="text-rose-600">*</span>
+                  Your Name
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Chihiro Ogino"
                   value={recipientName}
                   onChange={(e) => setRecipientName(e.target.value)}
@@ -268,12 +289,12 @@ export default function CheckoutDrawer({
 
               <div>
                 <label className="text-[11px] font-semibold text-[#547365] block mb-1">
-                  Email Address (Your Digital Key) <span className="text-rose-600">*</span>
+                  Email Address <span className="text-rose-600">*</span>
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="e.g. chihiro@spirited.jp"
+                  placeholder="e.g. chihiro@meadow.jp"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-[#9cbfae] bg-white text-xs focus:ring-1 focus:ring-[#9cbfae] focus:outline-none"
@@ -282,52 +303,15 @@ export default function CheckoutDrawer({
 
               <div>
                 <label className="text-[11px] font-semibold text-[#547365] block mb-1">
-                  Physical Shipping Address <span className="text-rose-600">*</span>
+                  City & Country (Optional — helps us plan postage)
                 </label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Street address, building, apartment, city, state, postal code..."
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                <input
+                  type="text"
+                  placeholder="e.g. Bengaluru, India or London, UK"
+                  value={cityCountry}
+                  onChange={(e) => setCityCountry(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-[#9cbfae] bg-white text-xs focus:ring-1 focus:ring-[#9cbfae] focus:outline-none"
                 />
-                <span className="text-[10px] text-[#547365] mt-1 block">
-                  All physical items are hand-packed and dispatched directly to this address.
-                </span>
-              </div>
-            </div>
-
-            {/* Payment Method */}
-            <div className="space-y-2 pt-2 border-t border-[#eedba5]">
-              <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#1b2e24] block">
-                Secure Payment Method
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setGateway("razorpay")}
-                  className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    gateway === "razorpay"
-                      ? "bg-[#1b2e24] text-white border-[#1b2e24]"
-                      : "bg-white text-stone-700 border-stone-200"
-                  }`}
-                >
-                  <CreditCard className="w-3.5 h-3.5" />
-                  <span>Razorpay (UPI / Cards)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGateway("paypal")}
-                  className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    gateway === "paypal"
-                      ? "bg-[#1b2e24] text-white border-[#1b2e24]"
-                      : "bg-white text-stone-700 border-stone-200"
-                  }`}
-                >
-                  <CreditCard className="w-3.5 h-3.5" />
-                  <span>PayPal (Global)</span>
-                </button>
               </div>
             </div>
 
@@ -340,7 +324,7 @@ export default function CheckoutDrawer({
                   onChange={(e) => setOptInNewsletter(e.target.checked)}
                   className="rounded border-[#9cbfae] text-emerald-800 focus:ring-emerald-700 mt-0.5"
                 />
-                <span>Also subscribe me to free monthly Cultural Newsletter whispers.</span>
+                <span>Send me behind-the-scenes paper & print updates + free region whispers.</span>
               </label>
 
               <label className="flex items-start gap-2 cursor-pointer">
@@ -369,24 +353,24 @@ export default function CheckoutDrawer({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3.5 bg-[#9cbfae] hover:bg-[#86ab9a] disabled:opacity-50 text-[#1b2e24] font-serif font-bold text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 bg-[#1b2e24] hover:bg-stone-800 disabled:opacity-50 text-white font-serif font-bold text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Sealing Dispatch...</span>
+                    <span>Reserving Your Spot...</span>
                   </>
                 ) : (
                   <>
-                    <span>Seal Dispatch & Confirm ({gateway === "razorpay" ? "Razorpay" : "PayPal"})</span>
+                    <span>Join Founding Waitlist (Free)</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
 
-              <div className="flex items-center justify-center gap-2 mt-3 text-[10px] text-[#547365] font-mono">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-800" />
-                <span>256-bit Encrypted • Cancel Anytime • Hand-packaged with Care</span>
+              <div className="flex items-center justify-center gap-2 mt-3 text-[10px] text-[#547365] font-mono text-center">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-800 shrink-0" />
+                <span>No charge today • Priority Batch 01 invite • Unsubscribe anytime</span>
               </div>
             </div>
           </form>

@@ -16,22 +16,22 @@ interface KitItem {
 const KIT_ITEMS: KitItem[] = [
   {
     id: "art-print",
-    name: "Hand-Printed Ghibli Art",
-    subtitle: "Tactile Cotton Rag Paper",
+    name: "Hand-Printed Scenic Art",
+    subtitle: "Heavy Textured Art Paper",
     icon: <Image className="w-4 h-4" />,
     tag: "Every Month",
-    description: "Original, archival-grade illustration of a breathtaking scene from the Ghibli movie inspired by that month's region. Hand-pressed on heavy textured washi paper.",
-    details: ["300gsm textured cotton rag", "Archival pigment inks", "Hand-stamped artist edition seal"],
+    description: "Original, small-batch illustration inspired by the real-world Japanese landscape behind that month's story. Printed on warm, textured fine-art paper.",
+    details: ["Heavy textured fine-art stock", "Rich pigment print finish", "Hand-stamped artist edition seal"],
     sampleImage: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=800&q=80"
   },
   {
     id: "anime-sticker",
-    name: "Character Vinyl Sticker",
-    subtitle: "Waterproof Matte Vinyl",
+    name: "Spirit Character Sticker",
+    subtitle: "Matte Collectible Finish",
     icon: <Sparkles className="w-4 h-4" />,
     tag: "Every Month",
-    description: "A gentle illustrated vinyl sticker capturing the spirit world — Kodama, soot sprites, or forest deities. Die-cut with a soft satin finish.",
-    details: ["Weatherproof & UV resistant", "Soft-touch matte laminate", "Custom die-cut silhouette"],
+    description: "A gentle illustrated character sticker capturing the spirit world — Kodama, soot sprites, or forest deities, crafted with a soft matte finish.",
+    details: ["Soft-touch matte finish", "Custom die-cut silhouette", "Designed for journals & laptops"],
     sampleImage: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80"
   },
   {
@@ -41,17 +41,17 @@ const KIT_ITEMS: KitItem[] = [
     icon: <Tag className="w-4 h-4" />,
     tag: "Every Month",
     description: "Designed in the style of historic Japanese postal stamps. Paste this sticker directly onto your large physical Japan map to mark that month's milestone.",
-    details: ["Perforated stamp border", "Prefecture botanical crest", "Collectible 12-piece mosaic set"],
+    details: ["Postal stamp silhouette", "Prefecture botanical crest", "Collectible 12-piece mosaic set"],
     sampleImage: "https://images.unsplash.com/photo-1528164344705-475426879c0d?auto=format&fit=crop&w=800&q=80"
   },
   {
     id: "lore-letter",
-    name: "Hand-Sealed Lore Letter",
+    name: "Wax-Sealed Lore Letter",
     subtitle: "Folded Parchment & Wax Seal",
     icon: <BookOpen className="w-4 h-4" />,
     tag: "Every Month",
-    description: "A personal letter recounting my wanderings through the prefecture, local folklore, how Miyazaki built that world, and the quiet beauty of rural Japan.",
-    details: ["Genuine wax seal with 心 emblem", "Traditional vertical/horizontal prose", "Includes Japanese floral notes"],
+    description: "A personal letter exploring the prefecture, local folklore, how Miyazaki built that world, and the quiet beauty of rural Japan.",
+    details: ["Wax seal with 心 emblem", "Tactile folded letter paper", "Includes Japanese botanical notes"],
     sampleImage: "https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=800&q=80"
   },
   {
@@ -60,8 +60,8 @@ const KIT_ITEMS: KitItem[] = [
     subtitle: "Month 1 Welcome Keepsake",
     icon: <Map className="w-4 h-4" />,
     tag: "Bonus Gift",
-    description: "Sent with your very first dispatch. A large, vintage-cartography wall map of Japan showing all 12 cultural waypoints, ready to receive your monthly stickers.",
-    details: ["Heavy cream stock (A3 format)", "Illustrated landmarks & mountain passes", "Arrives in a protective wax envelope"],
+    description: "Planned for your very first dispatch: a foldout vintage-cartography map of Japan showing all 12 cultural waypoints, ready to receive your monthly stamps.",
+    details: ["Warm cream foldout format", "Illustrated landmarks & passes", "Arrives in a wax-sealed mailer"],
     sampleImage: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80"
   }
 ];
@@ -87,8 +87,8 @@ export default function TactileUnboxingTray() {
         </div>
 
         <div className="text-right hidden sm:block">
-          <span className="text-[11px] font-serif text-[#1b2e24] font-medium">100% Plastic-free</span>
-          <span className="text-[10px] font-mono text-[#547365] block">Shipped in eco-parchment mailers</span>
+          <span className="text-[11px] font-serif text-[#1b2e24] font-medium">Eco-conscious mailers</span>
+          <span className="text-[10px] font-mono text-[#547365] block">Concept specs • Finalizing paper</span>
         </div>
       </div>
 
@@ -150,9 +150,9 @@ export default function TactileUnboxingTray() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
               <span className="text-[10px] font-mono uppercase tracking-wider bg-black/40 backdrop-blur-xs px-2 py-0.5 rounded-md">
-                Tactile Preview
+                Concept Preview
               </span>
-              <span className="text-xs font-serif italic text-[#f5dfb8]">Handcrafted in Tokyo</span>
+              <span className="text-xs font-serif italic text-[#f5dfb8]">Small-batch craft</span>
             </div>
           </div>
 

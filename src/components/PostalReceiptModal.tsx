@@ -6,6 +6,8 @@ import { CustomerOrder } from "../types.ts";
 interface PostalReceiptModalProps {
   order: CustomerOrder | null;
   isOpen: boolean;
+  isWaitlistReservation?: boolean;
+  alreadyOnWaitlist?: boolean;
   onClose: () => void;
   onViewJournal: () => void;
 }
@@ -13,6 +15,8 @@ interface PostalReceiptModalProps {
 export default function PostalReceiptModal({
   order,
   isOpen,
+  isWaitlistReservation = true,
+  alreadyOnWaitlist = false,
   onClose,
   onViewJournal,
 }: PostalReceiptModalProps) {
@@ -40,44 +44,58 @@ export default function PostalReceiptModal({
           <div className="flex items-start justify-between border-b border-[#eedba5] pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-serif font-bold text-emerald-950">納品書</span>
+                <span className="text-sm font-serif font-bold text-emerald-950">招待状</span>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#547365] bg-white px-2 py-0.5 rounded-md border border-[#eedba5]">
-                  Official Postal Manifest
+                  {isWaitlistReservation ? "Founding Waitlist Pass" : "Official Postal Manifest"}
                 </span>
               </div>
               <h3 className="font-serif font-bold text-2xl text-[#1b2e24] mt-1">
-                Dispatch Sealed
+                {isWaitlistReservation
+                  ? alreadyOnWaitlist
+                    ? "You’re Already on the List"
+                    : "Founding Spot Reserved"
+                  : "Dispatch Sealed"}
               </h3>
               <p className="text-xs text-[#547365]">
-                Your handcrafted parcel is being prepared in our slow workshop.
+                {isWaitlistReservation
+                  ? "No payment was charged. You’ll be first to know when Batch 01 paper & prints are ready to ship."
+                  : "Your handcrafted parcel is being prepared in our slow workshop."}
               </p>
             </div>
 
             {/* Vermilion Red Seal Stamp */}
             <div className="w-14 h-14 rounded-full border-2 border-dashed border-red-700/80 bg-red-50 flex flex-col items-center justify-center text-red-800 shadow-2xs rotate-[-8deg] shrink-0">
               <span className="font-serif font-bold text-base leading-none">心</span>
-              <span className="text-[7px] font-mono uppercase tracking-tighter mt-0.5">Sealed</span>
+              <span className="text-[7px] font-mono uppercase tracking-tighter mt-0.5">
+                {isWaitlistReservation ? "Reserved" : "Sealed"}
+              </span>
             </div>
           </div>
 
           {/* Order & Tracking Summary Pill */}
           <div className="bg-white p-4 rounded-2xl border border-[#eedba5] grid grid-cols-2 gap-3 text-xs">
             <div>
-              <span className="text-[10px] font-mono text-[#547365] block uppercase">Manifest ID</span>
+              <span className="text-[10px] font-mono text-[#547365] block uppercase">
+                {isWaitlistReservation ? "Pass Reference" : "Manifest ID"}
+              </span>
               <span className="font-mono font-bold text-sm text-[#1b2e24]">{order.orderNumber}</span>
             </div>
             <div>
-              <span className="text-[10px] font-mono text-[#547365] block uppercase">Tracking Waybill</span>
-              <span className="font-mono font-bold text-xs text-emerald-800">{order.trackingNumber}</span>
+              <span className="text-[10px] font-mono text-[#547365] block uppercase">
+                {isWaitlistReservation ? "Status" : "Tracking Waybill"}
+              </span>
+              <span className="font-mono font-bold text-xs text-emerald-800">
+                {isWaitlistReservation ? "Batch 01 Priority" : order.trackingNumber}
+              </span>
             </div>
             <div>
-              <span className="text-[10px] font-mono text-[#547365] block uppercase">Recipient</span>
+              <span className="text-[10px] font-mono text-[#547365] block uppercase">Traveler</span>
               <span className="font-medium text-[#1b2e24] truncate block">{order.recipientName}</span>
             </div>
             <div>
-              <span className="text-[10px] font-mono text-[#547365] block uppercase">Shipping Method</span>
+              <span className="text-[10px] font-mono text-[#547365] block uppercase">Shipping Region</span>
               <span className="font-medium text-[#1b2e24]">
-                {order.destination === "India" ? "Domestic Speed-Post" : "Tokyo Tracked Airmail"}
+                {order.destination === "India" ? "India Domestic" : "International"}
               </span>
             </div>
           </div>
@@ -85,7 +103,7 @@ export default function PostalReceiptModal({
           {/* Line Items List */}
           <div className="space-y-2">
             <span className="text-[10px] font-mono font-bold uppercase text-[#547365] block">
-              Parcels Included in this Dispatch
+              {isWaitlistReservation ? "Saved Preferences (No Charge Today)" : "Parcels Included in this Dispatch"}
             </span>
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {order.items.map((item, idx) => (
@@ -109,10 +127,14 @@ export default function PostalReceiptModal({
           </div>
 
           {/* Shipping Destination */}
-          <div className="bg-[#faf6eb] p-3.5 rounded-xl border border-[#eedba5] text-xs text-[#1b2e24] space-y-1">
-            <span className="text-[10px] font-mono uppercase text-[#547365] block">Delivery Destination</span>
-            <p className="font-medium text-[#1b2e24] leading-relaxed">{order.shipping_address}</p>
-          </div>
+          {order.shipping_address ? (
+            <div className="bg-[#faf6eb] p-3.5 rounded-xl border border-[#eedba5] text-xs text-[#1b2e24] space-y-1">
+              <span className="text-[10px] font-mono uppercase text-[#547365] block">
+                {isWaitlistReservation ? "Location / City" : "Delivery Destination"}
+              </span>
+              <p className="font-medium text-[#1b2e24] leading-relaxed">{order.shipping_address}</p>
+            </div>
+          ) : null}
 
           {/* Actions */}
           <div className="pt-2 flex flex-col sm:flex-row gap-2.5">

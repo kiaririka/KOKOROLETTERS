@@ -19,22 +19,25 @@ import {
 import { 
   getAllOrders, 
   getAllNewsletter, 
+  getAllWaitlist,
   updateOrderStatus, 
   seedSampleData,
   checkAndExpireOverdueSubscriptions,
   OrderRecord, 
-  NewsletterRecord 
+  NewsletterRecord,
+  WaitlistRecord
 } from "../firestoreService.ts";
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [newsletters, setNewsletters] = useState<NewsletterRecord[]>([]);
+  const [waitlist, setWaitlist] = useState<WaitlistRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"orders" | "newsletter">("orders");
+  const [activeTab, setActiveTab] = useState<"waitlist" | "orders" | "newsletter">("waitlist");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,12 +53,14 @@ export default function AdminDashboard() {
       } catch (checkErr) {
         console.warn("Overdue deadline check notice:", checkErr);
       }
-      const [fetchedOrders, fetchedNews] = await Promise.all([
+      const [fetchedOrders, fetchedNews, fetchedWaitlist] = await Promise.all([
         getAllOrders(),
-        getAllNewsletter()
+        getAllNewsletter(),
+        getAllWaitlist()
       ]);
       setOrders(fetchedOrders);
       setNewsletters(fetchedNews);
+      setWaitlist(fetchedWaitlist);
     } catch (err: any) {
       console.error("AdminDashboard load error:", err);
       setError(err?.message || "Could not fetch data from Firestore. Check your Firestore Security Rules.");
@@ -125,8 +130,18 @@ export default function AdminDashboard() {
   const droppedSubscribers = orders.filter(o => o.status === "Cancelled").length;
   const newsletterThisMonth = newsletters.filter(n => isCurrentMonth(n.createdDate, n.createdAt)).length;
   const totalNewsletter = newsletters.length;
+  const totalWaitlist = waitlist.length;
+  const indiaWaitlist = waitlist.filter(w => w.destination !== "International").length;
+  const intlWaitlist = waitlist.filter(w => w.destination === "International").length;
 
   // Filtered lists for search
+  const filteredWaitlist = waitlist.filter(w =>
+    w.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (w.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (w.cityCountry || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (w.preferredPlan || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const filteredOrders = orders.filter(o => 
     (o.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     (o.recipientName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -192,6 +207,32 @@ export default function AdminDashboard() {
     document.body.removeChild(link);
   };
 
+  const exportWaitlistCsv = () => {
+    if (waitlist.length === 0) {
+      alert("No Founding Waitlist entries to export yet.");
+      return;
+    }
+    const headers = ["Name", "Email", "Region", "Preferred Plan", "City / Country", "Saved Items", "Source", "Date"];
+    const rows = waitlist.map(w => [
+      `"${(w.name || "Traveler").replace(/"/g, '""')}"`,
+      `"${w.email}"`,
+      `"${w.destination || "India"}"`,
+      `"${(w.preferredPlan || "").replace(/"/g, '""')}"`,
+      `"${(w.cityCountry || "").replace(/"/g, '""')}"`,
+      `"${(w.interestedItems && w.interestedItems.length > 0 ? w.interestedItems.map(i => `${i.name} (x${i.quantity})`).join("; ") : "").replace(/"/g, '""')}"`,
+      `"${w.source || "waitlist"}"`,
+      `"${w.createdDate || "N/A"}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `kokoro_waitlist_${currentMonthName}_${currentYear}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-10 px-6 space-y-8">
       {/* Header */}
@@ -228,7 +269,13 @@ export default function AdminDashboard() {
             <span>Refresh</span>
           </button>
           <button
-            onClick={activeTab === "orders" ? exportOrdersCsv : exportNewsletterCsv}
+            onClick={
+              activeTab === "waitlist"
+                ? exportWaitlistCsv
+                : activeTab === "orders"
+                ? exportOrdersCsv
+                : exportNewsletterCsv
+            }
             className="flex items-center gap-2 px-3.5 py-2 bg-ghibli-green hover:bg-[#86ab9a] text-ghibli-green-dark rounded-xl text-xs font-bold transition-all shadow-xs"
           >
             <Download className="w-3.5 h-3.5" />
@@ -253,18 +300,18 @@ export default function AdminDashboard() {
 
       {/* 4 Core Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Subscribers for the Month */}
+        {/* Card 1: Founding Waitlist Demand */}
         <div className="bg-white p-5 rounded-2xl border border-ghibli-green-light shadow-xs flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-ghibli-sage uppercase tracking-wider">Subscribers (This Month)</p>
+            <p className="text-[11px] font-semibold text-ghibli-sage uppercase tracking-wider">Founding Waitlist</p>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-bold text-ghibli-green-dark font-mono">{subscribersThisMonth}</span>
-              <span className="text-[10px] text-ghibli-sage font-mono">({totalActiveSubscribers} total active)</span>
+              <span className="text-2xl font-bold text-ghibli-green-dark font-mono">{totalWaitlist}</span>
+              <span className="text-[10px] text-ghibli-sage font-mono">({indiaWaitlist} IN / {intlWaitlist} Intl)</span>
             </div>
-            <p className="text-[10px] text-emerald-700 font-medium mt-0.5">🍃 Active kit dispatches</p>
+            <p className="text-[10px] text-emerald-700 font-medium mt-0.5">🌿 Batch 01 demand intent</p>
           </div>
         </div>
 
@@ -318,7 +365,17 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-3xl border border-ghibli-green-light shadow-xs overflow-hidden">
         {/* Navigation Tabs & Search */}
         <div className="p-6 border-b border-ghibli-green-light/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-stone-50/50">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab("waitlist")}
+              className={`px-4 py-2 rounded-xl text-xs font-serif font-bold transition-all ${
+                activeTab === "waitlist"
+                  ? "bg-ghibli-green text-ghibli-green-dark shadow-xs"
+                  : "bg-white text-ghibli-sage hover:text-ghibli-green-dark border border-stone-200"
+              }`}
+            >
+              Founding Waitlist ({waitlist.length})
+            </button>
             <button
               onClick={() => setActiveTab("orders")}
               className={`px-4 py-2 rounded-xl text-xs font-serif font-bold transition-all ${
@@ -327,7 +384,7 @@ export default function AdminDashboard() {
                   : "bg-white text-ghibli-sage hover:text-ghibli-green-dark border border-stone-200"
               }`}
             >
-              Postcard Subscribers & Orders ({orders.length})
+              Subscribers & Orders ({orders.length})
             </button>
             <button
               onClick={() => setActiveTab("newsletter")}
@@ -345,7 +402,7 @@ export default function AdminDashboard() {
             <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-stone-400" />
             <input
               type="text"
-              placeholder={`Search ${activeTab === "orders" ? "orders" : "newsletter"}...`}
+              placeholder={`Search ${activeTab}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-200 bg-white text-xs focus:outline-none focus:ring-1 focus:ring-ghibli-green"
@@ -358,6 +415,66 @@ export default function AdminDashboard() {
           <div className="py-16 text-center text-ghibli-sage space-y-3">
             <RefreshCw className="w-6 h-6 animate-spin mx-auto text-emerald-700" />
             <p className="text-xs">Loading live Firestore ledger...</p>
+          </div>
+        ) : activeTab === "waitlist" ? (
+          /* Founding Waitlist Table */
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-stone-50 text-stone-500 font-semibold uppercase tracking-wider border-b border-stone-200">
+                  <th className="px-6 py-3.5">Traveler</th>
+                  <th className="px-6 py-3.5">Preferred Plan & Items</th>
+                  <th className="px-6 py-3.5">Region & Location</th>
+                  <th className="px-6 py-3.5">Source</th>
+                  <th className="px-6 py-3.5 text-right">Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {filteredWaitlist.map((w) => (
+                  <tr key={w.id} className="hover:bg-stone-50/60 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-stone-800">{w.name || "Traveler"}</div>
+                      <div className="text-[11px] text-stone-500">{w.email}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-stone-700">{w.preferredPlan || "Monthly Passage"}</div>
+                      {w.interestedItems && w.interestedItems.length > 0 && (
+                        <div className="text-[11px] text-stone-500 mt-0.5 space-y-0.5">
+                          {w.interestedItems.map((it, i) => (
+                            <div key={i}>• {it.name} ×{it.quantity} ({it.priceFormatted})</div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                        w.destination === "International"
+                          ? "bg-sky-50 text-sky-800 border-sky-200"
+                          : "bg-amber-50 text-amber-800 border-amber-200"
+                      }`}>
+                        {w.destination === "International" ? "🌏 International" : "🇮🇳 India"}
+                      </span>
+                      {w.cityCountry && (
+                        <div className="text-[11px] text-stone-500 mt-1">{w.cityCountry}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-[11px] text-stone-500">
+                      {w.source}
+                    </td>
+                    <td className="px-6 py-4 text-right text-stone-400 font-mono text-[11px]">
+                      {w.createdDate ? new Date(w.createdDate).toLocaleDateString() : "Recent"}
+                    </td>
+                  </tr>
+                ))}
+                {filteredWaitlist.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-stone-400">
+                      No waitlist entries found matching your search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         ) : activeTab === "orders" ? (
           /* Orders Table */
@@ -376,7 +493,33 @@ export default function AdminDashboard() {
               <tbody className="divide-y divide-stone-100">
                 {filteredOrders.map((order) => {
                   const hasItems = order.items && order.items.length > 0;
-                  return (
+                  const exportWaitlistCsv = () => {
+    if (waitlist.length === 0) {
+      alert("No Founding Waitlist entries to export yet.");
+      return;
+    }
+    const headers = ["Name", "Email", "Region", "Preferred Plan", "City / Country", "Saved Items", "Source", "Date"];
+    const rows = waitlist.map(w => [
+      `"${(w.name || "Traveler").replace(/"/g, '""')}"`,
+      `"${w.email}"`,
+      `"${w.destination || "India"}"`,
+      `"${(w.preferredPlan || "").replace(/"/g, '""')}"`,
+      `"${(w.cityCountry || "").replace(/"/g, '""')}"`,
+      `"${(w.interestedItems && w.interestedItems.length > 0 ? w.interestedItems.map(i => `${i.name} (x${i.quantity})`).join("; ") : "").replace(/"/g, '""')}"`,
+      `"${w.source || "waitlist"}"`,
+      `"${w.createdDate || "N/A"}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `kokoro_waitlist_${currentMonthName}_${currentYear}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
                     <tr key={order.id} className="hover:bg-stone-50/60 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 mb-1">
