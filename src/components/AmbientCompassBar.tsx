@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Volume2, VolumeX, Wind, Droplets, Waves, Sparkles, User, LogOut } from "lucide-react";
+import { Volume2, VolumeX, Wind, Droplets, Waves, Sparkles, User, LogOut, ShoppingBag } from "lucide-react";
 
 interface AmbientCompassBarProps {
   ambientSound: "none" | "wind" | "river" | "ocean";
@@ -10,6 +10,8 @@ interface AmbientCompassBarProps {
   unlockedCount: number;
   onOpenAuth: () => void;
   onLogout?: () => void;
+  cartCount?: number;
+  onOpenCart?: () => void;
 }
 
 export default function AmbientCompassBar({
@@ -21,6 +23,8 @@ export default function AmbientCompassBar({
   unlockedCount,
   onOpenAuth,
   onLogout,
+  cartCount = 0,
+  onOpenCart,
 }: AmbientCompassBarProps) {
   const [showSoundMenu, setShowSoundMenu] = useState(false);
 
@@ -36,7 +40,7 @@ export default function AmbientCompassBar({
       <div className="relative">
         <button
           onClick={() => setShowSoundMenu((prev) => !prev)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-medium border transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-medium border transition-all cursor-pointer ${
             isAudioPlaying
               ? "bg-[#e3ece8] border-[#9cbfae] text-[#1b2e24] shadow-xs"
               : "bg-white/80 border-stone-200 text-stone-500 hover:text-stone-800"
@@ -68,7 +72,7 @@ export default function AmbientCompassBar({
                   onChangeSound(opt.id);
                   setShowSoundMenu(false);
                 }}
-                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-colors ${
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-colors cursor-pointer ${
                   ambientSound === opt.id && isAudioPlaying
                     ? "bg-[#1b2e24] text-white font-medium"
                     : "hover:bg-white text-stone-700"
@@ -88,13 +92,30 @@ export default function AmbientCompassBar({
                 onToggleAudio();
                 setShowSoundMenu(false);
               }}
-              className="w-full text-left px-2.5 py-1.5 rounded-xl text-xs text-rose-700 hover:bg-rose-50 border-t border-[#eedba5]/40 mt-1"
+              className="w-full text-left px-2.5 py-1.5 rounded-xl text-xs text-rose-700 hover:bg-rose-50 border-t border-[#eedba5]/40 mt-1 cursor-pointer"
             >
               Mute Soundscape
             </button>
           </div>
         )}
       </div>
+
+      {/* Cart / Satchel Button */}
+      {onOpenCart && (
+        <button
+          onClick={onOpenCart}
+          className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-medium border border-stone-200 bg-white/80 hover:bg-[#faf6eb] text-[#1b2e24] transition-all cursor-pointer shadow-2xs"
+          title="Open Cart Satchel"
+        >
+          <ShoppingBag className="w-3.5 h-3.5 text-[#547365]" />
+          <span className="hidden sm:inline">Satchel</span>
+          {cartCount > 0 && (
+            <span className="w-4 h-4 rounded-full bg-[#1b2e24] text-white text-[9px] font-mono font-bold flex items-center justify-center">
+              {cartCount}
+            </span>
+          )}
+        </button>
+      )}
 
       {/* Traveler Account Badge / Sign In */}
       {sessionEmail ? (
@@ -109,7 +130,7 @@ export default function AmbientCompassBar({
           {onLogout && (
             <button
               onClick={onLogout}
-              className="text-stone-400 hover:text-rose-600 ml-1"
+              className="text-stone-400 hover:text-rose-600 ml-1 cursor-pointer"
               title="Sign Out"
             >
               <LogOut className="w-3 h-3" />
@@ -119,7 +140,7 @@ export default function AmbientCompassBar({
       ) : (
         <button
           onClick={onOpenAuth}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-full text-xs font-serif font-bold transition-all shadow-xs"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-full text-xs font-serif font-bold transition-all shadow-xs cursor-pointer"
         >
           <User className="w-3.5 h-3.5" />
           <span>Sign In</span>

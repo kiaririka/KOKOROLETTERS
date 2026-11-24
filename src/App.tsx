@@ -29,7 +29,8 @@ import {
   ShieldCheck,
   Award,
   Globe,
-  Settings
+  Settings,
+  ShoppingBag
 } from "lucide-react";
 
 import JapanMap from "./components/JapanMap.tsx";
@@ -42,6 +43,8 @@ import ReadingParchmentModal from "./components/ReadingParchmentModal.tsx";
 import CheckoutDrawer from "./components/CheckoutDrawer.tsx";
 import PostcardWhispers from "./components/PostcardWhispers.tsx";
 import AmbientCompassBar from "./components/AmbientCompassBar.tsx";
+import StoreFront from "./components/StoreFront.tsx";
+import CartDrawer, { CartItem } from "./components/CartDrawer.tsx";
 
 import { submitWaitlistEmail } from "./waitlist.ts";
 import { 
@@ -64,6 +67,7 @@ import {
 } from "./currencyService.ts";
 import { Region, Subscriber, PlanTier, SubscriptionStatus } from "./types.ts";
 import { REGIONS_METADATA, LORE_DATA, getRegionMonthStatus, MonthStatus, getCurrentMonthNumber, getMonthName } from "./data/lore.ts";
+import { StoreProduct, STORE_PRODUCTS } from "./data/storeProducts.ts";
 
 export const ADMIN_EMAILS = [
   "isha79799@gmail.com",
@@ -71,8 +75,8 @@ export const ADMIN_EMAILS = [
 ];
 
 export default function App() {
-  // Navigation: 3 Core Layers + Whispers + Admin
-  const [activeTab, setActiveTab] = useState<"journey" | "journal" | "subscription" | "newsletter" | "admin">("journey");
+  // Navigation: Voyage | Travel Journal | Store | Whispers | Admin
+  const [activeTab, setActiveTab] = useState<"journey" | "journal" | "store" | "newsletter" | "admin">("journey");
   
   // Journal Sub-view: Map vs Goshuincho Stamp Book
   const [journalSubView, setJournalSubView] = useState<"map" | "stampbook">("map");
@@ -97,9 +101,11 @@ export default function App() {
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingRegions, setLoadingRegions] = useState(true);
 
-  // Currency selection
+  // E-Commerce & Currency State
   const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>("USD");
   const [planDestination, setPlanDestination] = useState<"India" | "International">("India");
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
   // Modals & Drawers
   const [readingModalOpen, setReadingModalOpen] = useState(false);
@@ -284,6 +290,44 @@ export default function App() {
     return false;
   };
 
+  // Cart operations
+  const handleAddToCart = (product: StoreProduct) => {
+    setCartItems((prev) => {
+      const existing = prev.find((item) => item.product.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+    setCartDrawerOpen(true);
+  };
+
+  const handleUpdateCartQuantity = (productId: string, delta: number) => {
+    setCartItems((prev) =>
+      prev
+        .map((item) => {
+          if (item.product.id === productId) {
+            const newQ = item.quantity + delta;
+            return newQ > 0 ? { ...item, quantity: newQ } : null;
+          }
+          return item;
+        })
+        .filter(Boolean) as CartItem[]
+    );
+  };
+
+  const handleRemoveCartItem = (productId: string) => {
+    setCartItems((prev) => prev.filter((item) => item.product.id !== productId));
+  };
+
+  const handleDirectSubscribe = (product: StoreProduct) => {
+    setCheckoutDrawerOpen(true);
+  };
+
   const handleSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailInput || !emailInput.includes("@")) {
@@ -360,6 +404,8 @@ export default function App() {
         }).catch(e => console.warn("Firestore saveOrder error:", e));
 
         setCheckoutDrawerOpen(false);
+        setCartDrawerOpen(false);
+        setCartItems([]);
         alert(import.meta.env.VITE_PREVIEW === "true"
           ? "🌿 Preview mode: no real payment was taken. You are signed in to a demo account so you can explore your travel journal."
           : `🌿 Welcome to Kokoro Letters!\n\nYour payment via ${data.gateway === "razorpay" ? "Razorpay" : "PayPal"} succeeded. Enjoy exploring your travel journal!`);
@@ -542,7 +588,7 @@ export default function App() {
                 Kokoro Letters
               </span>
               <span className="text-[10px] text-[#547365] font-mono block">
-                Japan Snail Mail Club
+                Japan Snail Mail Club & Paperie
               </span>
             </div>
           </button>
@@ -552,7 +598,7 @@ export default function App() {
             {[
               { id: "journey", label: "Voyage", icon: <Compass className="w-3.5 h-3.5" /> },
               { id: "journal", label: "Travel Journal", icon: <BookOpen className="w-3.5 h-3.5" /> },
-              { id: "subscription", label: "Passage & Store", icon: <CreditCard className="w-3.5 h-3.5" /> },
+              { id: "store", label: "Boutique Store", icon: <ShoppingBag className="w-3.5 h-3.5" /> },
               { id: "newsletter", label: "Whispers", icon: <Mail className="w-3.5 h-3.5" /> },
               ...(isAdmin ? [{ id: "admin", label: "Admin", icon: <Settings className="w-3.5 h-3.5" /> }] : []),
             ].map((tab) => {
@@ -574,7 +620,7 @@ export default function App() {
             })}
           </nav>
 
-          {/* Right Controls: Currency Switcher + Ambient Compass Bar */}
+          {/* Right Controls: Currency Switcher + Cart Satchel + Ambient Compass */}
           <div className="flex items-center gap-2">
             {/* Currency Selector Pill */}
             <div className="hidden lg:flex items-center gap-1 text-[11px] font-mono text-[#547365] bg-white border border-[#e3ece8] px-2 py-1 rounded-full">
@@ -605,6 +651,8 @@ export default function App() {
               unlockedCount={session?.unlocked_regions?.length || 0}
               onOpenAuth={() => setAuthModalOpen(true)}
               onLogout={session?.authenticated ? handleLogout : undefined}
+              cartCount={cartItems.reduce((acc, i) => acc + i.quantity, 0)}
+              onOpenCart={() => setCartDrawerOpen(true)}
             />
           </div>
         </div>
@@ -647,11 +695,11 @@ export default function App() {
                   <button
                     onClick={() => {
                       setPlanDestination("India");
-                      setCheckoutDrawerOpen(true);
+                      setActiveTab("store");
                     }}
                     className="px-6 py-3.5 bg-[#1b2e24] hover:bg-stone-800 text-white rounded-2xl text-xs md:text-sm font-serif font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                   >
-                    <span>Begin Your Passage</span>
+                    <span>Visit the Boutique Store</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                   <button
@@ -967,8 +1015,7 @@ export default function App() {
                   }}
                   isSubscriber={isSubscriberActive}
                   onOpenStore={() => {
-                    setPlanDestination("India");
-                    setCheckoutDrawerOpen(true);
+                    setActiveTab("store");
                   }}
                 />
               )}
@@ -976,30 +1023,17 @@ export default function App() {
           )}
 
           {/* ======================================================== */}
-          {/* SCREEN 3: PASSAGE & STORE (Clean, High-Conversion Hub)    */}
+          {/* SCREEN 3: BOUTIQUE STORE (Full E-Commerce & Subscriptions) */}
           {/* ======================================================== */}
-          {activeTab === "subscription" && (
+          {activeTab === "store" && (
             <motion.div
-              key="subscription-page"
+              key="store-page"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
               className="space-y-12"
             >
-              {/* Header */}
-              <div className="text-center space-y-2 max-w-2xl mx-auto">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#547365] bg-[#e3ece8] px-3 py-1 rounded-full">
-                  Monthly Membership Club
-                </span>
-                <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#1b2e24]">
-                  Choose Your Passage
-                </h2>
-                <p className="text-xs md:text-sm text-[#547365] leading-relaxed">
-                  One single, uncompromising premium club. Hand-printed art, Japanese stamps, vinyl stickers, and creator letters delivered each month.
-                </p>
-              </div>
-
               {/* If Active Member: The Traveler's Passport Card */}
               {session?.authenticated && isSubscriberActive ? (
                 <div className="bg-[#faf6eb] border-2 border-[#eedba5] rounded-3xl p-8 max-w-3xl mx-auto vintage-shadow space-y-6 text-left">
@@ -1069,146 +1103,16 @@ export default function App() {
                 </div>
               ) : null}
 
-              {/* Destination Switcher: India vs International */}
-              <div className="flex justify-center">
-                <div className="inline-flex p-1 bg-white border border-[#e3ece8] rounded-2xl shadow-xs">
-                  <button
-                    onClick={() => setPlanDestination("India")}
-                    className={`px-5 py-2 rounded-xl text-xs font-serif transition-all cursor-pointer ${
-                      planDestination === "India"
-                        ? "bg-[#1b2e24] text-white font-bold shadow-xs"
-                        : "text-[#547365] hover:text-[#1b2e24]"
-                    }`}
-                  >
-                    🇮🇳 Domestic India (Free Speed-Post)
-                  </button>
-                  <button
-                    onClick={() => setPlanDestination("International")}
-                    className={`px-5 py-2 rounded-xl text-xs font-serif transition-all cursor-pointer ${
-                      planDestination === "International"
-                        ? "bg-[#1b2e24] text-white font-bold shadow-xs"
-                        : "text-[#547365] hover:text-[#1b2e24]"
-                    }`}
-                  >
-                    🌏 International (Tracked Airmail)
-                  </button>
-                </div>
-              </div>
-
-              {/* Two Clean Pricing Cards (Standard Monthly vs 12-Month Bundle) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                {/* Standard Monthly Card */}
-                <div className="bg-white rounded-3xl border-2 border-[#9cbfae] p-8 flex flex-col justify-between space-y-6 vintage-shadow text-left relative overflow-hidden">
-                  <span className="absolute top-4 right-4 bg-emerald-800 text-white text-[9px] font-mono font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-                    Monthly Snail Mail
-                  </span>
-                  <div className="space-y-4">
-                    <div>
-                      <span className="text-xs font-mono text-[#547365] block">STANDARD MEMBERSHIP</span>
-                      <h4 className="font-serif font-bold text-2xl text-[#1b2e24] mt-1">Standard Plan</h4>
-                      <div className="mt-2 flex items-baseline gap-1">
-                        <span className="text-3xl font-serif font-bold text-[#1b2e24]">
-                          {getPlanPriceString("Standard", planDestination, selectedCurrency)}
-                        </span>
-                        <span className="text-xs text-[#547365] font-mono">/ month</span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-[#547365] leading-relaxed">
-                      Delivered each month. Includes 100% handcrafted materials with slow living Japanese philosophy.
-                    </p>
-
-                    <div className="space-y-2 pt-2 border-t border-[#e3ece8] text-xs text-[#1b2e24] font-medium">
-                      <div className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                        <span>🖼️ Hand-printed Ghibli Art Print (Archival Cotton)</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                        <span>✨ Character-Inspired Vinyl Matte Sticker</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                        <span>🏷️ Collectible Region Map Milestone Stamp</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                        <span>📜 Hand-sealed Creator's Lore Letter with Wax Seal</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                        <span>🎁 Month 1 Bonus: Large A3 Cartography Map of Japan</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setCheckoutDrawerOpen(true);
-                    }}
-                    className="w-full py-3.5 bg-[#9cbfae] hover:bg-[#86ab9a] text-[#1b2e24] font-serif font-bold text-sm rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Subscribe to Standard Plan</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* 12-Month Bundle Card */}
-                <div className="bg-[#faf6eb] rounded-3xl border-2 border-[#eedba5] p-8 flex flex-col justify-between space-y-6 vintage-shadow text-left relative overflow-hidden">
-                  <span className="absolute top-4 right-4 bg-amber-900 text-white text-[9px] font-mono font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-                    12 Moons Journey
-                  </span>
-                  <div className="space-y-4">
-                    <div>
-                      <span className="text-xs font-mono text-[#547365] block">FULL EXPEDITION</span>
-                      <h4 className="font-serif font-bold text-2xl text-[#1b2e24] mt-1">Annual Bundle</h4>
-                      <div className="mt-2 flex items-baseline gap-1">
-                        <span className="text-3xl font-serif font-bold text-[#1b2e24]">
-                          {getPlanPriceString("Bundle", planDestination, selectedCurrency)}
-                        </span>
-                        <span className="text-xs text-[#547365] font-mono">/ 12 months</span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-[#547365] leading-relaxed">
-                      Prepay the full 12-region expedition across Japan. Best value for serious collectors and lovers of Japanese craft.
-                    </p>
-
-                    <div className="space-y-2 pt-2 border-t border-[#eedba5] text-xs text-[#1b2e24] font-medium">
-                      <div className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                        <span>🖼️ Complete 12-Month Hand-printed Art Collection</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                        <span>✨ All 12 Character Stickers + Region Map Stamps</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                        <span>📜 12 Hand-sealed Creator Lore Letters</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                        <span>🎁 Month 1 Bonus: Large A3 Cartography Map of Japan</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                        <span>🌟 Priority Hand-packing & Guaranteed Fulfillment</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setCheckoutDrawerOpen(true);
-                    }}
-                    className="w-full py-3.5 bg-[#1b2e24] hover:bg-stone-800 text-white font-serif font-bold text-sm rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Subscribe to Annual Bundle</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+              {/* Full E-Commerce Boutique Storefront Component */}
+              <StoreFront
+                destination={planDestination}
+                onToggleDestination={setPlanDestination}
+                selectedCurrency={selectedCurrency}
+                onAddToCart={handleAddToCart}
+                onDirectSubscribe={handleDirectSubscribe}
+                onOpenCart={() => setCartDrawerOpen(true)}
+                cartCount={cartItems.reduce((acc, i) => acc + i.quantity, 0)}
+              />
 
               {/* Already a Member: Clean Magic Link Card */}
               {!session?.authenticated && (
@@ -1289,7 +1193,7 @@ export default function App() {
             <div className="flex flex-col gap-1.5 text-[11px]">
               <button onClick={() => setActiveTab("journey")} className="text-left hover:text-[#1b2e24] cursor-pointer">Our Voyage</button>
               <button onClick={() => setActiveTab("journal")} className="text-left hover:text-[#1b2e24] cursor-pointer">Travel Journal & Map</button>
-              <button onClick={() => setActiveTab("subscription")} className="text-left hover:text-[#1b2e24] cursor-pointer">Passages & Store</button>
+              <button onClick={() => setActiveTab("store")} className="text-left hover:text-[#1b2e24] cursor-pointer">Boutique Store & Passages</button>
               <button onClick={() => setActiveTab("newsletter")} className="text-left hover:text-[#1b2e24] cursor-pointer">Postcard Whispers</button>
               {isAdmin && (
                 <button onClick={() => setActiveTab("admin")} className="text-left font-mono text-[10px] text-stone-400 hover:text-stone-800 pt-1 cursor-pointer">
@@ -1334,7 +1238,24 @@ export default function App() {
       {/* LAYER 3: DRAWERS & MODALS                                */}
       {/* ======================================================== */}
 
-      {/* 1. Slide-Over Checkout Drawer */}
+      {/* 1. Shopping Satchel / Cart Drawer */}
+      <CartDrawer
+        isOpen={cartDrawerOpen}
+        onClose={() => setCartDrawerOpen(false)}
+        items={cartItems}
+        onUpdateQuantity={handleUpdateCartQuantity}
+        onRemoveItem={handleRemoveCartItem}
+        onClearCart={() => setCartItems([])}
+        destination={planDestination}
+        onToggleDestination={setPlanDestination}
+        selectedCurrency={selectedCurrency}
+        onProceedToCheckout={() => {
+          setCartDrawerOpen(false);
+          setCheckoutDrawerOpen(true);
+        }}
+      />
+
+      {/* 2. Slide-Over Checkout Drawer */}
       <CheckoutDrawer
         isOpen={checkoutDrawerOpen}
         onClose={() => setCheckoutDrawerOpen(false)}
@@ -1348,7 +1269,7 @@ export default function App() {
         onOpenTerms={() => setTermsModalOpen(true)}
       />
 
-      {/* 2. Reading Parchment Modal */}
+      {/* 3. Reading Parchment Modal */}
       <ReadingParchmentModal
         region={activeRegion || null}
         isOpen={readingModalOpen}
@@ -1361,7 +1282,7 @@ export default function App() {
         isSubscriber={isSubscriberActive}
       />
 
-      {/* 3. Magic Link Sign-in Modal */}
+      {/* 4. Magic Link Sign-in Modal */}
       <AnimatePresence>
         {authModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -1461,7 +1382,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 4. Terms & Conditions Modal */}
+      {/* 5. Terms & Conditions Modal */}
       <AnimatePresence>
         {termsModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -1532,7 +1453,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 5. Change Plan Modal */}
+      {/* 6. Change Plan Modal */}
       <AnimatePresence>
         {changePlanModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -1601,7 +1522,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 6. Edit Address Modal */}
+      {/* 7. Edit Address Modal */}
       <AnimatePresence>
         {editAddressModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -1651,7 +1572,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 7. Cancel Subscription Modal */}
+      {/* 8. Cancel Subscription Modal */}
       <AnimatePresence>
         {cancelModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
